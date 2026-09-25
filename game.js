@@ -3,6 +3,20 @@
 const byId = id => document.getElementById(id);
 const praise = ['せいかい！', 'すごい！', 'やったね！', 'よく できたね！', 'ばっちり！'];
 let mode = 'addition';
+let activeLevel = 1;
+let answeredRecorded = false;
+const levels = [
+  { id: 1, limit: 10, mode: 'addition', title: '10までの たしざん', icon: '🌱' },
+  { id: 2, limit: 10, mode: 'subtraction', title: '10までの ひきざん', icon: '🌷' },
+  { id: 3, limit: 20, mode: 'addition', title: '20までの たしざん', icon: '🌳' },
+  { id: 4, limit: 20, mode: 'subtraction', title: '20までの ひきざん', icon: '⛰️' },
+  { id: 5, limit: 20, mode: 'mixed', title: '20までの ミックス', icon: '🏰' }
+];
+const categoryNames = {
+  'addition-small': '10以内のたし算', 'addition-large': '20以内のたし算（繰り上がりなし）',
+  'addition-cross': '繰り上がりのあるたし算', 'subtraction-small': '10以内のひき算',
+  'subtraction-large': '20以内のひき算（繰り下がりなし）', 'subtraction-cross': '繰り下がりのあるひき算'
+};
 let questions = [];
 let questionIndex = 0;
 let firstTryCorrect = 0;
@@ -63,16 +77,32 @@ function shuffle(array) {
   return array;
 }
 
-// 両方の数と答えが0〜10の範囲になる問題を作り、重複せずに10問選ぶ。
-function createQuestions(operation) {
+// 最多でも2問だけを最近の傾向から選び、残りはランダムにする。
+function calculationType(q) {
+  const crossing = q.op === 'addition' ? q.a % 10 + q.b % 10 >= 10 : q.a % 10 < q.b % 10;
+  return `${q.op}-${crossing ? 'cross' : Math.max(q.a, q.b, q.answer) <= 10 ? 'small' : 'large'}`;
+}
+function recentTrends() {
+  const counts = {};
+  progressData.recent.forEach(item => {
+    if (!item.correct) counts[item.type] = (counts[item.type] || 0) + 1;
+  });
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+}
+function createQuestions(operation, limit = 10) {
   const pool = [];
-  for (let a = 0; a <= 10; a++) {
-    for (let b = 0; b <= 10; b++) {
-      if (operation === 'addition' && a + b <= 10) pool.push({ a, b, answer: a + b });
-      if (operation === 'subtraction' && a >= b) pool.push({ a, b, answer: a - b });
-    }
+  for (let a = 0; a <= limit; a++) for (let b = 0; b <= limit; b++) {
+    if (operation !== 'subtraction' && a + b <= limit) pool.push({ a, b, op: 'addition', answer: a + b });
+    if (operation !== 'addition' && a >= b) pool.push({ a, b, op: 'subtraction', answer: a - b });
   }
-  return shuffle(pool).slice(0, 10);
+  const trend = recentTrends().find(([type, count]) => count >= 2 && pool.some(q => calculationType(q) === type));
+  const selected = trend ? shuffle(pool.filter(q => calculationType(q) === trend[0])).slice(0, 2) : [];
+  const remaining = shuffle(pool.filter(q => !selected.includes(q)));
+  if (operation === 'mixed') {
+    // ミックスでは必ずたし算・ひき算を5問ずつ出す。
+    for (const op of ['addition', 'subtraction']) selected.push(...remaining.filter(q => q.op === op).slice(0, 5 - selected.filter(q => q.op === op).length));
+  } else selected.push(...remaining.slice(0, 10 - selected.length));
+  return shuffle(selected);
 }
 
 function showScreen(name) {
@@ -84,12 +114,19 @@ function showScreen(name) {
   window.scrollTo(0, 0);
 }
 
-function startGame(operation) {
-  mode = operation;
-  questions = createQuestions(mode);
+function startGame(selection) {
+  const id = typeof selection === 'number' ? selection : selection === 'subtraction' ? 2 : 1;
+  const level = levels.find(item => item.id === id);
+  if (!level || !progressData.enabled[id - 1]) return;
+  activeLevel = id;
+  mode = level.mode;
+  questions = createQuestions(mode, level.limit);
+  progressData.stats.plays++;
+  saveProgress();
+  prepareAudio();
   questionIndex = 0;
   firstTryCorrect = 0;
-  byId('game-title').textContent = mode === 'addition' ? 'たしざん' : 'ひきざん';
+  byId('game-title').textContent = `レベル ${activeLevel} ・ ${level.title}`;
   showScreen('game');
   renderQuestion();
 }
@@ -104,8 +141,9 @@ function renderQuestion() {
   replaceInput = false;
   solved = false;
   madeMistake = false;
+  answeredRecorded = false;
   const question = questions[questionIndex];
-  byId('problem').textContent = `${question.a} ${mode === 'addition' ? '＋' : '−'} ${question.b}`;
+  byId('problem').textContent = `${question.a} ${question.op === 'addition' ? '＋' : '−'} ${question.b}`;
   byId('question-count').textContent = `${questionIndex + 1} / 10 もん`;
   byId('progress').value = questionIndex;
   byId('progress').textContent = `${questionIndex} / 10`;
@@ -137,6 +175,15 @@ function editInput(clearAll) {
 
 function checkAnswer() {
   if (screen !== 'game' || solved || input === '') return;
+  if (!answeredRecorded) {
+    answeredRecorded = true;
+    const correct = Number(input) === questions[questionIndex].answer;
+    progressData.stats.answered++;
+    if (correct) progressData.stats.correct++;
+    progressData.recent.push({ type: calculationType(questions[questionIndex]), correct });
+    progressData.recent = progressData.recent.slice(-60);
+    saveProgress();
+  }
   if (Number(input) !== questions[questionIndex].answer) {
     madeMistake = true;
     replaceInput = true;
@@ -162,7 +209,7 @@ function nextQuestion() {
   if (screen !== 'game' || !solved) return;
   questionIndex++;
   if (questionIndex === 10) {
-    byId('score').textContent = `10もんちゅう ${firstTryCorrect}もん せいかい！`;
+    byId('score').textContent = 'きょうも ひとつ つよくなったね！';
     awardCompletion();
     showScreen('result');
     showReward();
@@ -180,7 +227,7 @@ byId('clear').addEventListener('click', () => editInput(true));
 byId('backspace').addEventListener('click', () => editInput(false));
 byId('check').addEventListener('click', checkAnswer);
 byId('next').addEventListener('click', nextQuestion);
-byId('again').addEventListener('click', () => startGame(mode));
+byId('again').addEventListener('click', () => startGame(activeLevel));
 byId('go-home').addEventListener('click', () => showScreen('home'));
 byId('choose-mode').addEventListener('click', () => showScreen('home'));
 
@@ -197,7 +244,7 @@ document.addEventListener('keydown', event => {
   }
 });
 
-// 保存するのは進捗と音の設定だけ。コレクションは星の合計から求める。
+// 星・日付・設定と、個人情報を含まない学習の集計を保存する。コレクションは星の合計から求める。
 const STORAGE_KEY = 'kids-math-game.progress.v1';
 const friends = [
   { stars: 5, icon: '🐣', name: 'ひよこ' },
@@ -206,7 +253,10 @@ const friends = [
   { stars: 30, icon: '🦁', name: 'ライオン' },
   { stars: 50, icon: '👑', name: 'おうかん' }
 ];
-const freshProgress = () => ({ stars: 0, lastDay: '', streak: 0, sound: false });
+const freshProgress = () => ({ stars: 0, lastDay: '', streak: 0, sound: false,
+  enabled: [true, true, false, false, false], cleared: [],
+  stats: { plays: 0, answered: 0, correct: 0 }, recent: [] });
+const safeCount = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 function dayKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -228,7 +278,12 @@ function loadProgress() {
       stars: Number.isSafeInteger(saved.stars) && saved.stars >= 0 ? saved.stars : 0,
       lastDay: validDay(saved.lastDay) ? saved.lastDay : '',
       streak: validDay(saved.lastDay) && Number.isSafeInteger(saved.streak) && saved.streak > 0 ? saved.streak : 0,
-      sound: saved.sound === true
+      sound: saved.sound === true,
+      enabled: levels.map((_, i) => typeof saved.enabled?.[i] === 'boolean' ? saved.enabled[i] : i < 2),
+      cleared: Array.isArray(saved.cleared) ? [...new Set(saved.cleared.filter(id => levels.some(level => level.id === id)))] : [],
+      stats: { plays: safeCount(saved.stats?.plays), answered: safeCount(saved.stats?.answered),
+        correct: Math.min(safeCount(saved.stats?.correct), safeCount(saved.stats?.answered)) },
+      recent: Array.isArray(saved.recent) ? saved.recent.filter(item => item && Object.hasOwn(categoryNames, item.type) && typeof item.correct === 'boolean').slice(-60).map(item => ({ type: item.type, correct: item.correct })) : []
     };
   } catch (_) { byId('storage-notice').hidden = false; return freshProgress(); }
 }
@@ -240,6 +295,7 @@ function saveProgress() {
 function earnedStars(score) { return score >= 8 ? 3 : score >= 5 ? 2 : 1; }
 function renderHome(date = new Date()) {
   const today = dayKey(date);
+  renderLevels();
   byId('total-stars').textContent = progressData.stars;
   byId('daily-message').textContent = progressData.lastDay === today ? 'きょうのチャレンジ クリア！' : 'きょうも さんすう やってみよう！';
   const continuing = progressData.lastDay === today || progressData.lastDay === yesterdayKey(date);
@@ -255,6 +311,7 @@ function awardCompletion(date = new Date()) {
   const today = dayKey(date);
   const firstToday = progressData.lastDay !== today;
   progressData.stars += count;
+  if (!progressData.cleared.includes(activeLevel)) progressData.cleared.push(activeLevel);
   if (firstToday) {
     progressData.streak = progressData.lastDay === yesterdayKey(date) ? progressData.streak + 1 : 1;
     progressData.lastDay = today;
@@ -335,19 +392,53 @@ byId('sound-toggle').addEventListener('click', () => {
 document.querySelectorAll('[data-mode], #again').forEach(button => button.addEventListener('click', prepareAudio));
 byId('open-collection').addEventListener('click', () => { renderCollection(); showScreen('collection'); });
 byId('collection-home').addEventListener('click', () => showScreen('home'));
-byId('open-settings').addEventListener('click', () => { byId('reset-confirm').hidden = true; byId('reset-status').textContent = ''; showScreen('settings'); });
+byId('open-settings').addEventListener('click', () => { byId('reset-confirm').hidden = true; byId('reset-status').textContent = ''; renderSettings(); showScreen('settings'); });
 byId('settings-home').addEventListener('click', () => showScreen('home'));
 byId('reset-request').addEventListener('click', () => { byId('reset-confirm').hidden = false; byId('reset-cancel').focus(); });
 byId('reset-cancel').addEventListener('click', () => { byId('reset-confirm').hidden = true; byId('reset-request').focus(); });
 byId('reset-confirm-button').addEventListener('click', () => {
-  progressData = { ...freshProgress(), sound: progressData.sound };
+  progressData = { ...freshProgress(), sound: progressData.sound, enabled: [...progressData.enabled] };
   saveProgress(); clearCelebration();
   byId('reset-confirm').hidden = true;
   byId('reset-status').textContent = 'リセットしました。また たのしく あそぼう！';
-  byId('reset-request').focus(); renderHome();
+  byId('reset-request').focus(); renderHome(); renderSettings();
 });
 window.addEventListener('focus', () => { if (screen === 'home') renderHome(); });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopSounds(); else if (screen === 'home') renderHome();
 });
+function renderLevels() {
+  byId('level-cards').replaceChildren(...levels.map(level => {
+    const button = document.createElement('button');
+    button.className = `level-card ${level.mode === 'subtraction' ? 'subtraction' : 'addition'}`;
+    button.disabled = !progressData.enabled[level.id - 1];
+    const title = document.createElement('strong'); title.textContent = `${level.icon} レベル ${level.id}`;
+    const name = document.createElement('span'); name.textContent = level.title;
+    const status = document.createElement('small');
+    status.textContent = progressData.cleared.includes(level.id) ? '⭐ クリア！' : button.disabled ? 'おうちの ひとと そうだん' : 'あそぶ →';
+    button.append(title, name, status);
+    button.addEventListener('click', () => startGame(level.id));
+    return button;
+  }));
+  byId('levels-empty').hidden = progressData.enabled.some(Boolean);
+}
+function renderSettings() {
+  byId('level-settings').replaceChildren(...levels.map(level => {
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = progressData.enabled[level.id - 1];
+    const text = document.createElement('span'); text.textContent = `レベル${level.id}：${level.title}`;
+    checkbox.addEventListener('change', () => { progressData.enabled[level.id - 1] = checkbox.checked; saveProgress(); });
+    label.append(checkbox, text); return label;
+  }));
+  byId('learning-stats').replaceChildren();
+  for (const [label, value] of [['遊んだ回数（開始した回数）', progressData.stats.plays], ['解いた問題数', progressData.stats.answered], ['正解数（最初の回答）', progressData.stats.correct]]) {
+    const term = document.createElement('dt'); term.textContent = label;
+    const count = document.createElement('dd'); count.textContent = value;
+    byId('learning-stats').append(term, count);
+  }
+  const trends = recentTrends();
+  byId('learning-trends').replaceChildren(...(trends.length ? trends.map(([type, count]) => `${categoryNames[type]}：${count}問`) : ['まだ記録はありません。']).map(text => {
+    const item = document.createElement('li'); item.textContent = text; return item;
+  }));
+}
 renderHome();
