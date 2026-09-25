@@ -15,12 +15,14 @@
       <div class="illustration" aria-hidden="true">🐰</div>
       <p class="eyebrow">すこしずつ、できるが ふえる</p>
       <h1 id="home-title">さんすうで あそぼう！</h1>
+      <div class="daily-panel"><p id="daily-message">きょうも さんすう やってみよう！</p><p id="streak-message"></p><p class="star-total">⭐ あつめたほし：<strong id="total-stars">0</strong>こ</p></div>
+      <div class="home-actions"><button id="open-collection" class="secondary">🎁 コレクション</button><button id="sound-toggle" class="secondary" aria-pressed="false">🔇 おと OFF</button></div>
       <p>どちらで あそぶ？</p>
       <div class="modes">
         <button class="mode addition" data-mode="addition"><span aria-hidden="true">＋</span>たしざん</button>
         <button class="mode subtraction" data-mode="subtraction"><span aria-hidden="true">−</span>ひきざん</button>
       </div>
-      <p class="note">10までの かず ・ ぜんぶで 10もん<br>じかんは たっぷり。あせらなくて いいよ。</p>
+      <p class="note">10までの かず ・ ぜんぶで 10もん<br>1かい 3〜5ふんが めやすだよ<br>じかんは たっぷり。あせらなくて いいよ。</p>
     </section>
 
     <section id="game" class="card" aria-labelledby="game-title" hidden>
@@ -46,14 +48,29 @@
       <div id="reward-stars" class="reward-stars" role="img" aria-label=""></div>
       <p id="perfect" class="perfect" hidden>パーフェクト！！</p>
       <p id="reward-message" class="reward-message"></p>
+      <p id="earned-stars" class="star-total"></p>
+      <p id="daily-result" class="daily-result"></p>
+      <div id="new-friends" class="new-friends"></div>
+      <div id="celebration-character" class="celebration-character" aria-hidden="true">🐰</div>
       <p id="score" class="score"></p>
       <p class="note">はじめの こたえで せいかいした かずだよ。</p>
       <p>10もん ぜんぶ できたね！<br>また いっしょに あそぼう。</p>
       <button id="again" class="primary">もういちど！</button>
       <button id="choose-mode" class="text-button">たしざん・ひきざんを えらぶ</button>
     </section>
+    <section id="collection" class="card" aria-labelledby="collection-title" hidden>
+      <h1 id="collection-title">ほしの コレクション</h1><p id="collection-total" class="star-total"></p>
+      <div id="collection-grid" class="collection-grid"></div><button id="collection-home" class="primary">もどる</button>
+    </section>
+    <section id="settings" class="card" aria-labelledby="settings-title" hidden>
+      <h1 id="settings-title">せってい</h1><p>おうちの ひとへ</p><p class="note">このブラウザの ほし・れんぞくきろく・なかまを リセットできます。</p>
+      <button id="reset-request" class="secondary">きろくを リセットする</button>
+      <div id="reset-confirm" class="reset-confirm" hidden><h2>きろくを けしますか？</h2><p>あつめた ほしと なかまが 0に もどります。もとには もどせません。</p><button id="reset-cancel" class="primary">けさない</button><button id="reset-confirm-button" class="text-button">きろくを けす</button></div>
+      <p id="reset-status" role="status"></p><button id="settings-home" class="text-button">もどる</button>
+    </section>
+    <p id="storage-notice" class="note storage-notice" role="status" hidden>このブラウザでは ほぞんできません。とじるまで あそべるよ。</p>
   </main>
   <div id="confetti" class="confetti" aria-hidden="true"></div>
-  <footer>まちがえても だいじょうぶ。もういちど やってみよう！</footer>
+  <footer>まちがえても だいじょうぶ。もういちど やってみよう！<button id="open-settings" class="text-button">せってい</button></footer>
 </body>
 </html>
