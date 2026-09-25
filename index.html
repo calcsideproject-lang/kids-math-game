@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff8ec">
+  <title>わくわく さんすう</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <header><span aria-hidden="true">🌼</span> わくわく さんすう</header>
+  <main>
+    <section id="home" class="card" aria-labelledby="home-title">
+      <div class="illustration" aria-hidden="true">🐰</div>
+      <p class="eyebrow">すこしずつ、できるが ふえる</p>
+      <h1 id="home-title">さんすうで あそぼう！</h1>
+      <p>どちらで あそぶ？</p>
+      <div class="modes">
+        <button class="mode addition" data-mode="addition"><span aria-hidden="true">＋</span>たしざん</button>
+        <button class="mode subtraction" data-mode="subtraction"><span aria-hidden="true">−</span>ひきざん</button>
+      </div>
+      <p class="note">10までの かず ・ ぜんぶで 10もん<br>じかんは たっぷり。あせらなくて いいよ。</p>
+    </section>
+
+    <section id="game" class="card" aria-labelledby="game-title" hidden>
+      <div class="game-heading"><h1 id="game-title">たしざん</h1><span id="question-count">1 / 10 もん</span></div>
+      <progress id="progress" max="10" value="0" aria-label="おわった もんだい">0 / 10</progress>
+      <p class="prompt">こたえは いくつかな？</p>
+      <div class="equation"><span id="problem"></span><span aria-hidden="true"> = </span><output id="answer" aria-label="にゅうりょくした こたえ" aria-live="polite">？</output></div>
+      <p id="feedback" class="feedback" role="status" aria-live="polite">すうじを おしてね</p>
+      <div id="keypad" class="keypad" aria-label="すうじの ボタン">
+        <button data-digit="1">1</button><button data-digit="2">2</button><button data-digit="3">3</button>
+        <button data-digit="4">4</button><button data-digit="5">5</button><button data-digit="6">6</button>
+        <button data-digit="7">7</button><button data-digit="8">8</button><button data-digit="9">9</button>
+        <button id="clear" class="edit">けす</button><button data-digit="0">0</button><button id="backspace" class="edit" aria-label="ひとつ けす">⌫</button>
+      </div>
+      <button id="check" class="primary" disabled>こたえる</button>
+      <button id="next" class="primary" hidden>つぎの もんだい →</button>
+      <button id="go-home" class="text-button">はじめに もどる</button>
+    </section>
+
+    <section id="result" class="card" aria-labelledby="result-title" hidden>
+      <p class="eyebrow">さいごまで がんばったね</p>
+      <h1 id="result-title" tabindex="-1">ごほうびタイム！</h1>
+      <div id="reward-stars" class="reward-stars" role="img" aria-label=""></div>
+      <p id="perfect" class="perfect" hidden>パーフェクト！！</p>
+      <p id="reward-message" class="reward-message"></p>
+      <p id="score" class="score"></p>
+      <p class="note">はじめの こたえで せいかいした かずだよ。</p>
+      <p>10もん ぜんぶ できたね！<br>また いっしょに あそぼう。</p>
+      <button id="again" class="primary">もういちど！</button>
+      <button id="choose-mode" class="text-button">たしざん・ひきざんを えらぶ</button>
+    </section>
+  </main>
+  <div id="confetti" class="confetti" aria-hidden="true"></div>
+  <footer>まちがえても だいじょうぶ。もういちど やってみよう！</footer>
+</body>
+</html>
