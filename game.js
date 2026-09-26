@@ -4,6 +4,13 @@ const byId = id => document.getElementById(id);
 const praise = ['せいかい！', 'すごい！', 'やったね！', 'よく できたね！', 'ばっちり！'];
 let mode = 'addition';
 let activeLevel = 1;
+let gameKind = 'math';
+const clockLevels = [
+  { id: 1, title: '○じ ちょうど', minutes: [0], type: 'hour' },
+  { id: 2, title: '○じ はん', minutes: [30], type: 'half' }
+];
+const freshClock = () => ({ enabled: [true, false], cleared: [], medal: false,
+  stats: { plays: 0, answered: 0, correct: 0 }, errors: { hour: 0, half: 0 } });
 let answeredRecorded = false;
 const levels = [
   { id: 1, limit: 10, mode: 'addition', title: '10までの たしざん', icon: '🌱' },
@@ -118,6 +125,7 @@ function startGame(selection) {
   const id = typeof selection === 'number' ? selection : selection === 'subtraction' ? 2 : 1;
   const level = levels.find(item => item.id === id);
   if (!level || !progressData.enabled[id - 1]) return;
+  gameKind = 'math';
   activeLevel = id;
   mode = level.mode;
   questions = createQuestions(mode, level.limit);
@@ -143,20 +151,26 @@ function renderQuestion() {
   madeMistake = false;
   answeredRecorded = false;
   const question = questions[questionIndex];
+  const isClock = gameKind === 'clock';
+  byId('clock-question').hidden = !isClock;
+  byId('math-prompt').hidden = isClock;
+  byId('math-equation').hidden = isClock;
+  byId('keypad').hidden = isClock;
+  if (isClock) renderClockQuestion(question);
   byId('problem').textContent = `${question.a} ${question.op === 'addition' ? '＋' : '−'} ${question.b}`;
   byId('question-count').textContent = `${questionIndex + 1} / 10 もん`;
   byId('progress').value = questionIndex;
   byId('progress').textContent = `${questionIndex} / 10`;
-  byId('feedback').textContent = 'すうじを おしてね';
+  byId('feedback').textContent = isClock ? 'こたえを えらんでね' : 'すうじを おしてね';
   byId('feedback').className = 'feedback';
-  byId('check').hidden = false;
+  byId('check').hidden = isClock;
   byId('next').hidden = true;
   document.querySelectorAll('#keypad button').forEach(button => { button.disabled = false; });
   updateInput();
 }
 
 function enterDigit(digit) {
-  if (screen !== 'game' || solved) return;
+  if (screen !== 'game' || solved || gameKind === 'clock') return;
   if (replaceInput || input === '0') input = '';
   replaceInput = false;
   if (input.length >= 2) return;
@@ -167,7 +181,7 @@ function enterDigit(digit) {
 }
 
 function editInput(clearAll) {
-  if (screen !== 'game' || solved) return;
+  if (screen !== 'game' || solved || gameKind === 'clock') return;
   input = clearAll ? '' : input.slice(0, -1);
   replaceInput = false;
   updateInput();
@@ -178,23 +192,34 @@ function checkAnswer() {
   if (!answeredRecorded) {
     answeredRecorded = true;
     const correct = Number(input) === questions[questionIndex].answer;
-    progressData.stats.answered++;
-    if (correct) progressData.stats.correct++;
-    progressData.recent.push({ type: calculationType(questions[questionIndex]), correct });
-    progressData.recent = progressData.recent.slice(-60);
+    if (gameKind === 'clock') {
+      progressData.clock.stats.answered++;
+      if (correct) progressData.clock.stats.correct++;
+      else progressData.clock.errors[questions[questionIndex].type]++;
+    } else {
+      progressData.stats.answered++;
+      if (correct) progressData.stats.correct++;
+      progressData.recent.push({ type: calculationType(questions[questionIndex]), correct });
+      progressData.recent = progressData.recent.slice(-60);
+    }
     saveProgress();
   }
   if (Number(input) !== questions[questionIndex].answer) {
     madeMistake = true;
     replaceInput = true;
-    byId('feedback').textContent = 'もういちど！';
+    byId('feedback').textContent = gameKind === 'clock' ? 'もういちど よくみてみよう！' : 'もういちど！';
     byId('feedback').className = 'feedback retry';
     return;
   }
   solved = true;
   playSound('correct');
   if (!madeMistake) firstTryCorrect++;
-  byId('feedback').textContent = praise[Math.floor(Math.random() * praise.length)];
+  const messages = gameKind === 'clock' ? ['せいかい！', 'とけいマスター！', 'よく みつけたね！'] : praise;
+  byId('feedback').textContent = messages[Math.floor(Math.random() * messages.length)];
+  if (gameKind === 'clock') {
+    byId('clock-face').classList.add('clock-success');
+    document.querySelectorAll('#clock-choices button').forEach(button => { button.disabled = true; });
+  }
   byId('feedback').className = 'feedback success';
   byId('progress').value = questionIndex + 1;
   byId('progress').textContent = `${questionIndex + 1} / 10`;
@@ -209,7 +234,7 @@ function nextQuestion() {
   if (screen !== 'game' || !solved) return;
   questionIndex++;
   if (questionIndex === 10) {
-    byId('score').textContent = 'きょうも ひとつ つよくなったね！';
+    byId('score').textContent = gameKind === 'clock' ? 'とけいマスター！ 🕰️✨' : 'きょうも ひとつ つよくなったね！';
     awardCompletion();
     showScreen('result');
     showReward();
@@ -217,7 +242,7 @@ function nextQuestion() {
     byId('result-title').focus({ preventScroll: true });
   } else {
     renderQuestion();
-    document.querySelector('[data-digit="1"]').focus({ preventScroll: true });
+    document.querySelector(gameKind === 'clock' ? '#clock-choices button' : '[data-digit="1"]').focus({ preventScroll: true });
   }
 }
 
@@ -227,13 +252,13 @@ byId('clear').addEventListener('click', () => editInput(true));
 byId('backspace').addEventListener('click', () => editInput(false));
 byId('check').addEventListener('click', checkAnswer);
 byId('next').addEventListener('click', nextQuestion);
-byId('again').addEventListener('click', () => startGame(activeLevel));
+byId('again').addEventListener('click', () => gameKind === 'clock' ? startClock(activeLevel) : startGame(activeLevel));
 byId('go-home').addEventListener('click', () => showScreen('home'));
 byId('choose-mode').addEventListener('click', () => showScreen('home'));
 
 // パソコンでは数字キー、Backspace、Enterでも操作できる。
 document.addEventListener('keydown', event => {
-  if (screen !== 'game' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+  if (screen !== 'game' || gameKind === 'clock' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
   if (/^[0-9]$/.test(event.key)) { event.preventDefault(); enterDigit(event.key); }
   else if (event.key === 'Backspace' || event.key === 'Delete') { event.preventDefault(); editInput(event.key === 'Delete'); }
   else if (event.key === 'Enter' && !event.repeat) {
@@ -255,7 +280,7 @@ const friends = [
 ];
 const freshProgress = () => ({ stars: 0, lastDay: '', streak: 0, sound: false,
   enabled: [true, true, false, false, false], cleared: [],
-  stats: { plays: 0, answered: 0, correct: 0 }, recent: [] });
+  stats: { plays: 0, answered: 0, correct: 0 }, recent: [], clock: freshClock() });
 const safeCount = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 function dayKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -279,6 +304,7 @@ function loadProgress() {
       lastDay: validDay(saved.lastDay) ? saved.lastDay : '',
       streak: validDay(saved.lastDay) && Number.isSafeInteger(saved.streak) && saved.streak > 0 ? saved.streak : 0,
       sound: saved.sound === true,
+      clock: normalizeClock(saved.clock),
       enabled: levels.map((_, i) => typeof saved.enabled?.[i] === 'boolean' ? saved.enabled[i] : i < 2),
       cleared: Array.isArray(saved.cleared) ? [...new Set(saved.cleared.filter(id => levels.some(level => level.id === id)))] : [],
       stats: { plays: safeCount(saved.stats?.plays), answered: safeCount(saved.stats?.answered),
@@ -296,6 +322,7 @@ function earnedStars(score) { return score >= 8 ? 3 : score >= 5 ? 2 : 1; }
 function renderHome(date = new Date()) {
   const today = dayKey(date);
   renderLevels();
+  renderClockLevels();
   byId('total-stars').textContent = progressData.stars;
   byId('daily-message').textContent = progressData.lastDay === today ? 'きょうのチャレンジ クリア！' : 'きょうも さんすう やってみよう！';
   const continuing = progressData.lastDay === today || progressData.lastDay === yesterdayKey(date);
@@ -311,7 +338,11 @@ function awardCompletion(date = new Date()) {
   const today = dayKey(date);
   const firstToday = progressData.lastDay !== today;
   progressData.stars += count;
-  if (!progressData.cleared.includes(activeLevel)) progressData.cleared.push(activeLevel);
+  const firstClockClear = gameKind === 'clock' && !progressData.clock.medal;
+  if (gameKind === 'clock') {
+    progressData.clock.medal = true;
+    if (!progressData.clock.cleared.includes(activeLevel)) progressData.clock.cleared.push(activeLevel);
+  } else if (!progressData.cleared.includes(activeLevel)) progressData.cleared.push(activeLevel);
   if (firstToday) {
     progressData.streak = progressData.lastDay === yesterdayKey(date) ? progressData.streak + 1 : 1;
     progressData.lastDay = today;
@@ -327,6 +358,11 @@ function awardCompletion(date = new Date()) {
     const message = document.createElement('p'); message.textContent = `やったー！あたらしい なかま！ ${friend.name}`;
     card.append(icon, message); return card;
   }));
+  if (firstClockClear) {
+    const medal = document.createElement('div'); medal.className = 'new-friend';
+    medal.textContent = '🕰️ やったー！ とけいメダルを ゲット！';
+    byId('new-friends').append(medal);
+  }
   const latestFriend = friends.filter(friend => friend.stars <= progressData.stars).at(-1);
   // 毎回要素を作り直し、連続プレイでもアニメーションを再生する。
   const character = document.createElement('span'); character.textContent = latestFriend ? latestFriend.icon : '🐰';
@@ -342,6 +378,11 @@ function renderCollection() {
     const caption = document.createElement('p'); caption.textContent = unlocked ? 'なかまに なったよ！' : `あと ${friend.stars - progressData.stars}この ほしで ゲット！`;
     card.append(icon, name, caption); return card;
   }));
+  const medal = document.createElement('div'); medal.className = 'friend-card';
+  const icon = document.createElement('span'); icon.className = 'friend-icon'; icon.textContent = progressData.clock.medal ? '🕰️' : '？';
+  const name = document.createElement('strong'); name.textContent = 'とけいメダル';
+  const text = document.createElement('p'); text.textContent = progressData.clock.medal ? 'とけいマスター！' : 'とけいを 10もん クリアで ゲット！';
+  medal.append(icon, name, text); byId('collection-grid').append(medal);
 }
 
 let audioContext;
@@ -397,7 +438,7 @@ byId('settings-home').addEventListener('click', () => showScreen('home'));
 byId('reset-request').addEventListener('click', () => { byId('reset-confirm').hidden = false; byId('reset-cancel').focus(); });
 byId('reset-cancel').addEventListener('click', () => { byId('reset-confirm').hidden = true; byId('reset-request').focus(); });
 byId('reset-confirm-button').addEventListener('click', () => {
-  progressData = { ...freshProgress(), sound: progressData.sound, enabled: [...progressData.enabled] };
+  progressData = { ...freshProgress(), sound: progressData.sound, enabled: [...progressData.enabled], clock: { ...freshClock(), enabled: [...progressData.clock.enabled] } };
   saveProgress(); clearCelebration();
   byId('reset-confirm').hidden = true;
   byId('reset-status').textContent = 'リセットしました。また たのしく あそぼう！';
@@ -423,6 +464,7 @@ function renderLevels() {
   byId('levels-empty').hidden = progressData.enabled.some(Boolean);
 }
 function renderSettings() {
+  renderClockSettings();
   byId('level-settings').replaceChildren(...levels.map(level => {
     const label = document.createElement('label');
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = progressData.enabled[level.id - 1];
@@ -439,6 +481,101 @@ function renderSettings() {
   const trends = recentTrends();
   byId('learning-trends').replaceChildren(...(trends.length ? trends.map(([type, count]) => `${categoryNames[type]}：${count}問`) : ['まだ記録はありません。']).map(text => {
     const item = document.createElement('li'); item.textContent = text; return item;
+  }));
+}
+// 時刻は「時・分」の組で扱い、将来の分単位レベルも追加できる。
+function normalizeClock(saved) {
+  const data = saved && typeof saved === 'object' ? saved : {};
+  return {
+    enabled: clockLevels.map((_, i) => typeof data.enabled?.[i] === 'boolean' ? data.enabled[i] : i === 0),
+    cleared: Array.isArray(data.cleared) ? [...new Set(data.cleared.filter(id => clockLevels.some(level => level.id === id)))] : [],
+    medal: data.medal === true,
+    stats: { plays: safeCount(data.stats?.plays), answered: safeCount(data.stats?.answered), correct: Math.min(safeCount(data.stats?.correct), safeCount(data.stats?.answered)) },
+    errors: { hour: safeCount(data.errors?.hour), half: safeCount(data.errors?.half) }
+  };
+}
+function clockLabel(hour, minute) {
+  return minute === 0 ? `${hour}じ` : minute === 30 ? `${hour}じ はん` : `${hour}じ ${minute}ふん`;
+}
+function createClockQuestions(level) {
+  const pool = [];
+  for (let hour = 1; hour <= 12; hour++) for (const minute of level.minutes) {
+    pool.push({ hour, minute, answer: hour * 60 + minute, type: level.type });
+  }
+  return shuffle(pool).slice(0, 10);
+}
+function startClock(id) {
+  const level = clockLevels.find(item => item.id === id);
+  if (!level || !progressData.clock.enabled[id - 1]) return;
+  gameKind = 'clock'; activeLevel = id;
+  questions = createClockQuestions(level);
+  questionIndex = 0; firstTryCorrect = 0;
+  progressData.clock.stats.plays++; saveProgress(); prepareAudio();
+  byId('game-title').textContent = `とけい ${id} ・ ${level.title}`;
+  showScreen('game'); renderQuestion();
+}
+function svgElement(name, attrs, text) {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+  Object.entries(attrs).forEach(([key, value]) => element.setAttribute(key, String(value)));
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+function drawClock(hour, minute) {
+  const svg = svgElement('svg', { viewBox: '0 0 300 300', role: 'img', 'aria-label': `みじかい はりは ${hour}と ${hour % 12 + 1}の ${minute === 0 ? 'うち はじめの すうじ' : 'あいだ'}、ながい はりは ${minute / 5 || 12}を さす とけい` });
+  svg.append(svgElement('circle', { cx: 150, cy: 150, r: 139, fill: '#fffefb', stroke: '#dfcdaa', 'stroke-width': 6 }));
+  for (let number = 1; number <= 12; number++) {
+    const angle = number * Math.PI / 6;
+    svg.append(svgElement('line', { x1: 150 + Math.sin(angle) * 127, y1: 150 - Math.cos(angle) * 127, x2: 150 + Math.sin(angle) * 132, y2: 150 - Math.cos(angle) * 132, stroke: '#8c806d', 'stroke-width': 3 }));
+    svg.append(svgElement('text', { x: 150 + Math.sin(angle) * 106, y: 150 - Math.cos(angle) * 106, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 25, 'font-weight': 800, fill: '#423e38' }, number));
+  }
+  svg.append(svgElement('line', { 'data-hand': 'hour', x1: 150, y1: 150, x2: 150, y2: 83, stroke: '#b45e36', 'stroke-width': 12, 'stroke-linecap': 'round', transform: `rotate(${(hour % 12) * 30 + minute * 0.5} 150 150)` }));
+  svg.append(svgElement('line', { 'data-hand': 'minute', x1: 150, y1: 150, x2: 150, y2: 56, stroke: '#33778a', 'stroke-width': 7, 'stroke-linecap': 'round', transform: `rotate(${minute * 6} 150 150)` }));
+  svg.append(svgElement('circle', { cx: 150, cy: 150, r: 8, fill: '#423e38' }));
+  byId('clock-face').classList.remove('clock-success');
+  byId('clock-face').replaceChildren(svg);
+  const sparkle = document.createElement('span'); sparkle.className = 'clock-sparkle'; sparkle.textContent = '✨'; sparkle.setAttribute('aria-hidden', 'true');
+  byId('clock-face').append(sparkle);
+}
+function renderClockQuestion(question) {
+  drawClock(question.hour, question.minute);
+  const hours = shuffle([question.hour === 1 ? 12 : question.hour - 1, question.hour, question.hour === 12 ? 1 : question.hour + 1]);
+  byId('clock-choices').replaceChildren(...hours.map(hour => {
+    const button = document.createElement('button'); button.className = 'clock-choice';
+    button.textContent = clockLabel(hour, question.minute);
+    button.dataset.answer = hour * 60 + question.minute;
+    button.addEventListener('click', () => {
+      if (screen !== 'game' || gameKind !== 'clock' || solved) return;
+      input = button.dataset.answer; checkAnswer();
+      if (!solved) { button.disabled = true; button.classList.add('tried'); }
+      else button.classList.add('chosen');
+    });
+    return button;
+  }));
+}
+function renderClockLevels() {
+  byId('clock-level-cards').replaceChildren(...clockLevels.map(level => {
+    const button = document.createElement('button'); button.className = 'level-card clock-card';
+    button.disabled = !progressData.clock.enabled[level.id - 1];
+    const name = document.createElement('strong'); name.textContent = `🕰️ レベル ${level.id}`;
+    const title = document.createElement('span'); title.textContent = level.title;
+    const status = document.createElement('small'); status.textContent = progressData.clock.cleared.includes(level.id) ? '⭐ クリア！' : button.disabled ? 'おうちの ひとと そうだん' : 'あそぶ →';
+    button.append(name, title, status); button.addEventListener('click', () => startClock(level.id)); return button;
+  }));
+}
+function renderClockSettings() {
+  byId('clock-settings').replaceChildren(...clockLevels.map(level => {
+    const label = document.createElement('label'); const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = progressData.clock.enabled[level.id - 1];
+    checkbox.addEventListener('change', () => { progressData.clock.enabled[level.id - 1] = checkbox.checked; saveProgress(); });
+    const text = document.createElement('span'); text.textContent = `とけいレベル${level.id}：${level.title}`;
+    label.append(checkbox, text); return label;
+  }));
+  byId('clock-stats').replaceChildren();
+  for (const [name, value] of [['遊んだ回数', progressData.clock.stats.plays], ['解いた問題数', progressData.clock.stats.answered], ['正解数（最初の回答）', progressData.clock.stats.correct]]) {
+    const term = document.createElement('dt'); term.textContent = name; const count = document.createElement('dd'); count.textContent = value;
+    byId('clock-stats').append(term, count);
+  }
+  byId('clock-trends').replaceChildren(...clockLevels.map(level => {
+    const item = document.createElement('li'); item.textContent = `${level.title}：初回回答の間違い ${progressData.clock.errors[level.type]}問`; return item;
   }));
 }
 renderHome();

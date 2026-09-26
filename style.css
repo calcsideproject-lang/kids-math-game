@@ -57,3 +57,18 @@
 #settings h2{font-size:21px;margin-top:28px}
 #game-title{font-size:17px;max-width:70%}#question-count{white-space:nowrap}
 @media(max-width:420px){.equation{font-size:clamp(25px,7.2vw,32px);gap:5px}#answer{min-width:60px}.level-card strong{font-size:18px}.level-card span{font-size:15px}.level-card small{font-size:12px}}
+
+/* 外部画像を使わないアナログ時計 */
+.clock-card{background:#e3edf8;color:#355b7b;box-shadow:0 5px 0 #b9cede}
+.clock-level-cards .level-card:last-child{grid-column:auto}
+.clock-face{position:relative;width:min(100%,320px);margin:8px auto 0}
+.clock-face svg{display:block;width:100%;height:auto}
+.clock-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 14px;font-size:12px;margin:5px 0}
+.clock-legend span:first-child{color:#a24f29}.clock-legend span:last-child{color:#27697b}
+.clock-prompt{font-size:24px;font-weight:800;margin:12px 0}
+.clock-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.clock-choice{padding:12px 4px;min-height:68px;border:2px solid #b9cede;border-radius:16px;background:#eef5fc;font-size:clamp(18px,4.5vw,24px);box-shadow:0 3px 0 #b9cede}
+.clock-choice.tried{opacity:.6}.clock-choice.chosen{background:#d7eee5;border-color:#397e61}
+.clock-sparkle{position:absolute;top:8%;right:4%;font-size:34px;visibility:hidden;pointer-events:none}
+.clock-success .clock-sparkle{visibility:visible}
+@media(prefers-reduced-motion:no-preference){.clock-success .clock-sparkle{animation:clock-twinkle 800ms ease-out both}@keyframes clock-twinkle{0%{opacity:0;transform:scale(.5)}45%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1)}}}

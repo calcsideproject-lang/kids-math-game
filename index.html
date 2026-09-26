@@ -20,6 +20,8 @@
       <h2 class="adventure-title">🗺️ さんすうのぼうけん</h2>
       <p class="note">すきな レベルで あそぼう！</p>
       <div id="level-cards" class="level-cards"></div>
+      <h2 class="adventure-title">🕰️ とけいチャレンジ</h2>
+      <div id="clock-level-cards" class="level-cards clock-level-cards"></div>
       <p id="levels-empty" class="note" hidden>おうちの ひとと レベルを えらぼう。</p>
       <p class="note">ぜんぶで 10もん<br>1かい 3〜5ふんが めやすだよ<br>じかんは たっぷり。あせらなくて いいよ。</p>
     </section>
@@ -27,8 +29,14 @@
     <section id="game" class="card" aria-labelledby="game-title" hidden>
       <div class="game-heading"><h1 id="game-title">たしざん</h1><span id="question-count">1 / 10 もん</span></div>
       <progress id="progress" max="10" value="0" aria-label="おわった もんだい">0 / 10</progress>
-      <p class="prompt">こたえは いくつかな？</p>
-      <div class="equation"><span id="problem"></span><span aria-hidden="true"> = </span><output id="answer" aria-label="にゅうりょくした こたえ" aria-live="polite">？</output></div>
+      <p id="math-prompt" class="prompt">こたえは いくつかな？</p>
+      <div id="math-equation" class="equation"><span id="problem"></span><span aria-hidden="true"> = </span><output id="answer" aria-label="にゅうりょくした こたえ" aria-live="polite">？</output></div>
+      <div id="clock-question" hidden>
+        <div id="clock-face" class="clock-face"></div>
+        <p class="clock-legend"><span>みじかい はり：じ</span><span>ながい はり：ふん</span></p>
+        <p class="clock-prompt">いま なんじ？</p>
+        <div id="clock-choices" class="clock-choices"></div>
+      </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite">すうじを おしてね</p>
       <div id="keypad" class="keypad" aria-label="すうじの ボタン">
         <button data-digit="1">1</button><button data-digit="2">2</button><button data-digit="3">3</button>
@@ -65,11 +73,15 @@
       <h1 id="settings-title">せってい</h1><p>おうちの ひとへ</p><p class="note">このブラウザの ほし・れんぞくきろく・なかまを リセットできます。</p>
       <h2>遊べるレベル</h2><p class="note">学校で習った内容に合わせて選んでください。レベル3以降は繰り上がり・繰り下がりを含みます。</p>
       <div id="level-settings" class="level-settings"></div>
-      <h2>学習の記録</h2><p class="note">この機能の追加後から集計します。解いた問題数・正解数は各問題の最初の回答を数えます。途中でやめた分も含みます。</p>
+      <h2>とけいのレベル</h2><div id="clock-settings" class="level-settings"></div>
+      <h2>計算の学習記録</h2><p class="note">この機能の追加後から集計します。解いた問題数・正解数は各問題の最初の回答を数えます。途中でやめた分も含みます。</p>
       <dl id="learning-stats" class="learning-stats"></dl>
       <h2>最近よく間違えている計算の種類</h2><p class="note">直近60問の最初の回答での間違いを集計します。</p><ul id="learning-trends" class="learning-trends"></ul>
+      <h2>とけいの学習記録</h2><dl id="clock-stats" class="learning-stats"></dl>
+      <p class="note">各問題の最初の回答を数えます。再挑戦は重複して数えません。</p>
+      <ul id="clock-trends" class="learning-trends"></ul>
       <button id="reset-request" class="secondary">きろくを リセットする</button>
-      <div id="reset-confirm" class="reset-confirm" hidden><h2>きろくを けしますか？</h2><p>ほし・なかま・れんぞくきろく・レベルのクリア・がくしゅうきろくを けします。もとには もどせません。</p><button id="reset-cancel" class="primary">けさない</button><button id="reset-confirm-button" class="text-button">きろくを けす</button></div>
+      <div id="reset-confirm" class="reset-confirm" hidden><h2>きろくを けしますか？</h2><p>ほし・なかま・れんぞくきろく・レベルのクリア・とけいメダル・がくしゅうきろくを けします。もとには もどせません。</p><button id="reset-cancel" class="primary">けさない</button><button id="reset-confirm-button" class="text-button">きろくを けす</button></div>
       <p id="reset-status" role="status"></p><button id="settings-home" class="text-button">もどる</button>
     </section>
     <p id="storage-notice" class="note storage-notice" role="status" hidden>このブラウザでは ほぞんできません。とじるまで あそべるよ。</p>
