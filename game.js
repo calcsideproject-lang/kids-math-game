@@ -33,6 +33,9 @@ let input = '';
 let replaceInput = false;
 let screen = 'home';
 let confettiTimer;
+let parentVerified = false;
+let parentQuestion = null;
+let previousParentQuestion = '';
 
 function clearCelebration() {
   window.clearTimeout(confettiTimer);
@@ -103,7 +106,8 @@ function createQuestions(operation, limit = 10) {
     if (operation !== 'addition' && a >= b) pool.push({ a, b, op: 'subtraction', answer: a - b });
   }
   const trend = recentTrends().find(([type, count]) => count >= 2 && pool.some(q => calculationType(q) === type));
-  const selected = trend ? shuffle(pool.filter(q => calculationType(q) === trend[0])).slice(0, 2) : [];
+  const review = reviewCandidates(pool);
+  const selected = review.length ? shuffle(review).slice(0, 2) : trend ? shuffle(pool.filter(q => calculationType(q) === trend[0])).slice(0, 2) : [];
   const remaining = shuffle(pool.filter(q => !selected.includes(q)));
   if (operation === 'mixed') {
     // ミックスでは必ずたし算・ひき算を5問ずつ出す。
@@ -113,9 +117,11 @@ function createQuestions(operation, limit = 10) {
 }
 
 function showScreen(name) {
+  if (['settings', 'report'].includes(name) && !parentVerified) return;
+  if (name === 'home') parentVerified = false;
   if (name !== 'result') clearCelebration();
   screen = name;
-  ['home', 'game', 'result', 'collection', 'settings'].forEach(id => { byId(id).hidden = id !== name; });
+  ['home', 'game', 'result', 'collection', 'settings', 'report'].forEach(id => { byId(id).hidden = id !== name; });
   byId('open-settings').hidden = name !== 'home';
   if (name === 'home') renderHome();
   window.scrollTo(0, 0);
@@ -130,6 +136,7 @@ function startGame(selection) {
   mode = level.mode;
   questions = createQuestions(mode, level.limit);
   progressData.stats.plays++;
+  learningDay().plays[mode]++;
   saveProgress();
   prepareAudio();
   questionIndex = 0;
@@ -167,6 +174,7 @@ function renderQuestion() {
   byId('next').hidden = true;
   document.querySelectorAll('#keypad button').forEach(button => { button.disabled = false; });
   updateInput();
+  if (!isClock) beginQuestionTiming(question);
 }
 
 function enterDigit(digit) {
@@ -197,6 +205,7 @@ function checkAnswer() {
       if (correct) progressData.clock.stats.correct++;
       else progressData.clock.errors[questions[questionIndex].type]++;
     } else {
+      recordLearningAnswer(questions[questionIndex], Number(input), correct);
       progressData.stats.answered++;
       if (correct) progressData.stats.correct++;
       progressData.recent.push({ type: calculationType(questions[questionIndex]), correct });
@@ -216,6 +225,7 @@ function checkAnswer() {
   if (!madeMistake) firstTryCorrect++;
   const messages = gameKind === 'clock' ? ['せいかい！', 'とけいマスター！', 'よく みつけたね！'] : praise;
   byId('feedback').textContent = messages[Math.floor(Math.random() * messages.length)];
+  if (gameKind === 'math' && !madeMistake && firstTiming !== null && firstTiming <= LEARNING.fastMs) byId('feedback').textContent = '⚡ パッとできた！';
   if (gameKind === 'clock') {
     byId('clock-face').classList.add('clock-success');
     document.querySelectorAll('#clock-choices button').forEach(button => { button.disabled = true; });
@@ -280,7 +290,7 @@ const friends = [
 ];
 const freshProgress = () => ({ stars: 0, lastDay: '', streak: 0, sound: false,
   enabled: [true, true, false, false, false], cleared: [],
-  stats: { plays: 0, answered: 0, correct: 0 }, recent: [], clock: freshClock() });
+  stats: { plays: 0, answered: 0, correct: 0 }, recent: [], clock: freshClock(), learning: freshLearning() });
 const safeCount = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 function dayKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -305,6 +315,7 @@ function loadProgress() {
       streak: validDay(saved.lastDay) && Number.isSafeInteger(saved.streak) && saved.streak > 0 ? saved.streak : 0,
       sound: saved.sound === true,
       clock: normalizeClock(saved.clock),
+      learning: normalizeLearning(saved.learning),
       enabled: levels.map((_, i) => typeof saved.enabled?.[i] === 'boolean' ? saved.enabled[i] : i < 2),
       cleared: Array.isArray(saved.cleared) ? [...new Set(saved.cleared.filter(id => levels.some(level => level.id === id)))] : [],
       stats: { plays: safeCount(saved.stats?.plays), answered: safeCount(saved.stats?.answered),
@@ -433,12 +444,24 @@ byId('sound-toggle').addEventListener('click', () => {
 document.querySelectorAll('[data-mode], #again').forEach(button => button.addEventListener('click', prepareAudio));
 byId('open-collection').addEventListener('click', () => { renderCollection(); showScreen('collection'); });
 byId('collection-home').addEventListener('click', () => showScreen('home'));
-byId('open-settings').addEventListener('click', () => { byId('reset-confirm').hidden = true; byId('reset-status').textContent = ''; renderSettings(); showScreen('settings'); });
+byId('open-settings').addEventListener('click', openParentGate);
 byId('settings-home').addEventListener('click', () => showScreen('home'));
-byId('reset-request').addEventListener('click', () => { byId('reset-confirm').hidden = false; byId('reset-cancel').focus(); });
+let resetScope = 'all';
+function requestReset(scope) {
+  resetScope = scope;
+  byId('reset-description').textContent = scope === 'learning' ? '計算・時計の学習記録とレポートを消します。星・仲間・メダル・連続記録・クリア状況・設定は残ります。元には戻せません。' : '星・仲間・メダル・連続記録・クリア状況・学習記録をすべて消します。音と遊べるレベルの設定は残ります。元には戻せません。';
+  byId('reset-confirm').hidden = false; byId('reset-cancel').focus();
+}
+byId('reset-request').addEventListener('click', () => requestReset('all'));
+byId('learning-reset-request').addEventListener('click', () => requestReset('learning'));
 byId('reset-cancel').addEventListener('click', () => { byId('reset-confirm').hidden = true; byId('reset-request').focus(); });
 byId('reset-confirm-button').addEventListener('click', () => {
+  if (resetScope === 'learning') {
+    progressData.learning = freshLearning(); progressData.recent = []; progressData.stats = { plays: 0, answered: 0, correct: 0 };
+    progressData.clock.stats = { plays: 0, answered: 0, correct: 0 }; progressData.clock.errors = { hour: 0, half: 0 };
+  } else {
   progressData = { ...freshProgress(), sound: progressData.sound, enabled: [...progressData.enabled], clock: { ...freshClock(), enabled: [...progressData.clock.enabled] } };
+  }
   saveProgress(); clearCelebration();
   byId('reset-confirm').hidden = true;
   byId('reset-status').textContent = 'リセットしました。また たのしく あそぼう！';
@@ -446,7 +469,7 @@ byId('reset-confirm-button').addEventListener('click', () => {
 });
 window.addEventListener('focus', () => { if (screen === 'home') renderHome(); });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopSounds(); else if (screen === 'home') renderHome();
+  if (document.hidden) { stopSounds(); interruptQuestionTiming(); } else if (screen === 'home') renderHome();
 });
 function renderLevels() {
   byId('level-cards').replaceChildren(...levels.map(level => {
@@ -579,3 +602,45 @@ function renderClockSettings() {
   }));
 }
 renderHome();
+
+// 誤操作を防ぐ簡易確認。問題と答えはメモリ内だけに保持する。
+function openParentGate() {
+  parentVerified = false;
+  const candidates = [];
+  for (let a = 2; a <= 9; a++) for (let b = 2; b <= 9; b++) {
+    if (a * b >= 12 && `${a}:${b}` !== previousParentQuestion) candidates.push({ a, b });
+  }
+  parentQuestion = candidates[Math.floor(Math.random() * candidates.length)];
+  previousParentQuestion = `${parentQuestion.a}:${parentQuestion.b}`;
+  byId('parent-question').textContent = `${parentQuestion.a} × ${parentQuestion.b} = ？`;
+  byId('parent-answer').value = '';
+  byId('parent-answer').removeAttribute('aria-invalid');
+  byId('gate-status').textContent = '';
+  byId('parent-gate').showModal();
+  byId('parent-answer').focus();
+}
+byId('parent-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!byId('parent-gate').open || !parentQuestion) return;
+  const answer = byId('parent-answer').value.trim().replace(/[０-９]/g, char => String.fromCharCode(char.charCodeAt(0) - 0xfee0));
+  if (!/^[0-9]{1,3}$/.test(answer) || Number(answer) !== parentQuestion.a * parentQuestion.b) {
+    byId('gate-status').textContent = 'もういちど かくにんしてね';
+    byId('parent-answer').setAttribute('aria-invalid', 'true');
+    byId('parent-answer').focus(); byId('parent-answer').select();
+    return;
+  }
+  parentVerified = true;
+  parentQuestion = null;
+  byId('parent-gate').close();
+  byId('reset-confirm').hidden = true; byId('reset-status').textContent = '';
+  renderSettings(); showScreen('settings'); byId('open-report').focus();
+});
+function clearParentQuestion() { parentQuestion = null; byId('parent-answer').value = ''; }
+byId('parent-gate').addEventListener('close', () => { if (!byId('parent-gate').open) clearParentQuestion(); });
+byId('parent-gate').addEventListener('cancel', clearParentQuestion);
+byId('parent-cancel').addEventListener('click', () => { clearParentQuestion(); byId('parent-gate').close(); });
+byId('open-report').addEventListener('click', () => { renderReport(); showScreen('report'); });
+byId('report-filter').addEventListener('change', renderReport);
+byId('report-back').addEventListener('click', () => { renderSettings(); showScreen('settings'); });
+window.addEventListener('blur', () => { interruptQuestionTiming(); });
+window.addEventListener('pagehide', interruptQuestionTiming);

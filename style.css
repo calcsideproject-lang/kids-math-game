@@ -72,3 +72,22 @@
 .clock-sparkle{position:absolute;top:8%;right:4%;font-size:34px;visibility:hidden;pointer-events:none}
 .clock-success .clock-sparkle{visibility:visible}
 @media(prefers-reduced-motion:no-preference){.clock-success .clock-sparkle{animation:clock-twinkle 800ms ease-out both}@keyframes clock-twinkle{0%{opacity:0;transform:scale(.5)}45%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(1)}}}
+
+/* 保護者レポート */
+.report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.report-stat{background:#f3f7ec;border-radius:16px;padding:16px 10px;display:flex;flex-direction:column;gap:10px;overflow-wrap:anywhere}
+.report-stat span{font-size:13px}.report-stat strong{font-size:clamp(18px,4vw,26px)}
+.report-filter{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px}
+.report-filter select{font:inherit;padding:12px;border-radius:12px;border:1px solid #b8c9bb;min-height:48px;max-width:100%}
+.problem-detail{text-align:left;border:1px solid #dfd4c0;border-radius:14px;margin:12px 0;padding:14px;overflow-wrap:anywhere}
+.problem-detail summary{cursor:pointer;min-height:44px;line-height:1.8}.problem-detail p,.problem-detail li{font-size:14px;line-height:1.9}
+#report h2{font-size:23px;margin-top:28px}
+dialog{border:2px solid #dfd4c0;border-radius:24px;padding:24px;width:min(440px,calc(100% - 28px));max-height:90svh;overflow:auto;color:#423e38;background:#fffefb;text-align:center}
+dialog::backdrop{background:#423e3866}dialog p,dialog label{font-size:16px}dialog summary{padding:16px 0;cursor:pointer}dialog label{display:flex;align-items:center;gap:10px;min-height:52px}dialog input{width:24px;height:24px}
+#learning-reset-request{margin-bottom:12px}
+
+#parent-form label{display:block;min-height:0;margin:12px 0;font-size:16px}
+#parent-answer{display:block;width:100%;height:60px;border:2px solid #b8c9bb;border-radius:14px;padding:10px;font:inherit;font-size:28px;text-align:center}
+#parent-answer:focus-visible{outline:3px solid #416eac;outline-offset:3px}
+#parent-question{font-size:32px;font-weight:800;margin:20px 0}
+#gate-status{min-height:29px;font-size:16px}

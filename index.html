@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#fff8ec">
   <title>わくわく さんすう</title>
   <link rel="stylesheet" href="style.css">
+  <script src="learning.js" defer></script>
   <script src="game.js" defer></script>
 </head>
 <body>
@@ -71,6 +72,7 @@
     </section>
     <section id="settings" class="card" aria-labelledby="settings-title" hidden>
       <h1 id="settings-title">せってい</h1><p>おうちの ひとへ</p><p class="note">このブラウザの ほし・れんぞくきろく・なかまを リセットできます。</p>
+      <button id="open-report" class="secondary">おうちの人レポート</button>
       <h2>遊べるレベル</h2><p class="note">学校で習った内容に合わせて選んでください。レベル3以降は繰り上がり・繰り下がりを含みます。</p>
       <div id="level-settings" class="level-settings"></div>
       <h2>とけいのレベル</h2><div id="clock-settings" class="level-settings"></div>
@@ -80,13 +82,34 @@
       <h2>とけいの学習記録</h2><dl id="clock-stats" class="learning-stats"></dl>
       <p class="note">各問題の最初の回答を数えます。再挑戦は重複して数えません。</p>
       <ul id="clock-trends" class="learning-trends"></ul>
+      <button id="learning-reset-request" class="secondary">学習記録だけリセット</button>
       <button id="reset-request" class="secondary">きろくを リセットする</button>
-      <div id="reset-confirm" class="reset-confirm" hidden><h2>きろくを けしますか？</h2><p>ほし・なかま・れんぞくきろく・レベルのクリア・とけいメダル・がくしゅうきろくを けします。もとには もどせません。</p><button id="reset-cancel" class="primary">けさない</button><button id="reset-confirm-button" class="text-button">きろくを けす</button></div>
+      <div id="reset-confirm" class="reset-confirm" hidden><h2>きろくを けしますか？</h2><p id="reset-description">ほし・なかま・れんぞくきろく・レベルのクリア・とけいメダル・がくしゅうきろくを けします。もとには もどせません。</p><button id="reset-cancel" class="primary">けさない</button><button id="reset-confirm-button" class="text-button">きろくを けす</button></div>
       <p id="reset-status" role="status"></p><button id="settings-home" class="text-button">もどる</button>
     </section>
+    <section id="report" class="card" aria-labelledby="report-title" hidden>
+      <h1 id="report-title">おうちの人レポート</h1>
+      <label class="report-filter">確認する計算 <select id="report-filter"><option value="all">全体</option><option value="addition">たし算</option><option value="subtraction">ひき算</option></select></label>
+      <h2>最近のようす</h2><p id="report-period" class="note"></p><div id="report-summary" class="report-grid"></div><p id="report-samples" class="note"></p>
+      <h2>前の7日間との比較</h2><div id="report-comparison" class="report-grid"></div><p id="report-growth" class="note"></p>
+      <p class="note">計算のみの記録です。ミックスの開始回数は、たし算・ひき算の両方に含まれます。各期間の習熟度はその期間内の直近5回答で判定します。問題の種類・操作にかかる時間の影響もあり、数値は観察の目安です。</p>
+      <h2>問題ごとのようす</h2><p class="note">タップすると直近8回までの回答が開きます。3回答未満、または有効な時間が足りない場合はデータ収集中です。</p><div id="problem-report"></div>
+      <button id="report-back" class="primary">設定へもどる</button>
+    </section>
+    <dialog id="parent-gate" aria-labelledby="gate-title">
+      <h2 id="gate-title">おうちのひとに きいてね</h2>
+      <form id="parent-form" novalidate>
+        <p id="parent-question" class="parent-question"></p>
+        <label for="parent-answer">こたえを にゅうりょく</label>
+        <input id="parent-answer" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" aria-describedby="gate-status" autofocus>
+        <button id="parent-enter" type="submit" class="primary">OK</button>
+        <p id="gate-status" role="status" aria-live="polite"></p>
+      </form>
+      <button id="parent-cancel" class="text-button">もどる</button>
+    </dialog>
     <p id="storage-notice" class="note storage-notice" role="status" hidden>このブラウザでは ほぞんできません。とじるまで あそべるよ。</p>
   </main>
   <div id="confetti" class="confetti" aria-hidden="true"></div>
-  <footer>まちがえても だいじょうぶ。もういちど やってみよう！<button id="open-settings" class="text-button">せってい</button></footer>
+  <footer>まちがえても だいじょうぶ。もういちど やってみよう！<button id="open-settings" class="text-button">おうちのひとへ</button></footer>
 </body>
 </html>
