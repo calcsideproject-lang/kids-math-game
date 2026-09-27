@@ -119,9 +119,10 @@ function createQuestions(operation, limit = 10) {
 function showScreen(name) {
   if (['settings', 'report'].includes(name) && !parentVerified) return;
   if (name === 'home') parentVerified = false;
+  if (name !== 'drive') stopDrive();
   if (name !== 'result') clearCelebration();
   screen = name;
-  ['home', 'game', 'result', 'collection', 'settings', 'report'].forEach(id => { byId(id).hidden = id !== name; });
+  ['home', 'game', 'result', 'collection', 'settings', 'report', 'drive-setup', 'drive'].forEach(id => { byId(id).hidden = id !== name; });
   byId('open-settings').hidden = name !== 'home';
   if (name === 'home') renderHome();
   window.scrollTo(0, 0);
@@ -262,7 +263,7 @@ byId('clear').addEventListener('click', () => editInput(true));
 byId('backspace').addEventListener('click', () => editInput(false));
 byId('check').addEventListener('click', checkAnswer);
 byId('next').addEventListener('click', nextQuestion);
-byId('again').addEventListener('click', () => gameKind === 'clock' ? startClock(activeLevel) : startGame(activeLevel));
+byId('again').addEventListener('click', () => gameKind === 'drive' ? startDrive(activeLevel) : gameKind === 'clock' ? startClock(activeLevel) : startGame(activeLevel));
 byId('go-home').addEventListener('click', () => showScreen('home'));
 byId('choose-mode').addEventListener('click', () => showScreen('home'));
 
@@ -290,7 +291,7 @@ const friends = [
 ];
 const freshProgress = () => ({ stars: 0, lastDay: '', streak: 0, sound: false,
   enabled: [true, true, false, false, false], cleared: [],
-  stats: { plays: 0, answered: 0, correct: 0 }, recent: [], clock: freshClock(), learning: freshLearning() });
+  stats: { plays: 0, answered: 0, correct: 0 }, recent: [], clock: freshClock(), learning: freshLearning(), drive: freshDrive() });
 const safeCount = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 function dayKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -315,6 +316,7 @@ function loadProgress() {
       streak: validDay(saved.lastDay) && Number.isSafeInteger(saved.streak) && saved.streak > 0 ? saved.streak : 0,
       sound: saved.sound === true,
       clock: normalizeClock(saved.clock),
+      drive: normalizeDrive(saved.drive),
       learning: normalizeLearning(saved.learning),
       enabled: levels.map((_, i) => typeof saved.enabled?.[i] === 'boolean' ? saved.enabled[i] : i < 2),
       cleared: Array.isArray(saved.cleared) ? [...new Set(saved.cleared.filter(id => levels.some(level => level.id === id)))] : [],
@@ -457,6 +459,7 @@ byId('learning-reset-request').addEventListener('click', () => requestReset('lea
 byId('reset-cancel').addEventListener('click', () => { byId('reset-confirm').hidden = true; byId('reset-request').focus(); });
 byId('reset-confirm-button').addEventListener('click', () => {
   if (resetScope === 'learning') {
+    progressData.drive.plays = 0; progressData.drive.goals = 0;
     progressData.learning = freshLearning(); progressData.recent = []; progressData.stats = { plays: 0, answered: 0, correct: 0 };
     progressData.clock.stats = { plays: 0, answered: 0, correct: 0 }; progressData.clock.errors = { hour: 0, half: 0 };
   } else {
@@ -487,6 +490,7 @@ function renderLevels() {
   byId('levels-empty').hidden = progressData.enabled.some(Boolean);
 }
 function renderSettings() {
+  byId('drive-stats').textContent = `遊んだ回数：${progressData.drive.plays}回 ／ ゴール：${progressData.drive.goals}回`;
   renderClockSettings();
   byId('level-settings').replaceChildren(...levels.map(level => {
     const label = document.createElement('label');
@@ -644,3 +648,5 @@ byId('report-filter').addEventListener('change', renderReport);
 byId('report-back').addEventListener('click', () => { renderSettings(); showScreen('settings'); });
 window.addEventListener('blur', () => { interruptQuestionTiming(); });
 window.addEventListener('pagehide', interruptQuestionTiming);
+
+initializeDrive();

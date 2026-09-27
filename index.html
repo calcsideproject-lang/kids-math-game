@@ -7,6 +7,7 @@
   <title>わくわく さんすう</title>
   <link rel="stylesheet" href="style.css">
   <script src="learning.js" defer></script>
+  <script src="drive.js" defer></script>
   <script src="game.js" defer></script>
 </head>
 <body>
@@ -21,12 +22,41 @@
       <h2 class="adventure-title">🗺️ さんすうのぼうけん</h2>
       <p class="note">すきな レベルで あそぼう！</p>
       <div id="level-cards" class="level-cards"></div>
+      <button id="open-drive" class="primary">🚗 さんすうドライブ</button>
       <h2 class="adventure-title">🕰️ とけいチャレンジ</h2>
       <div id="clock-level-cards" class="level-cards clock-level-cards"></div>
       <p id="levels-empty" class="note" hidden>おうちの ひとと レベルを えらぼう。</p>
       <p class="note">ぜんぶで 10もん<br>1かい 3〜5ふんが めやすだよ<br>じかんは たっぷり。あせらなくて いいよ。</p>
     </section>
 
+    <section id="drive-setup" class="card" hidden aria-labelledby="drive-setup-title">
+      <h1 id="drive-setup-title">どの くるまに する？</h1><div id="drive-cars" class="drive-cars"></div>
+      <label class="report-filter">あそぶ レベル <select id="drive-level"></select></label>
+      <p class="note">どの くるまも おなじ はやさだよ。</p><p id="drive-unavailable" hidden>おうちの ひとと レベルを えらぼう。</p>
+      <button id="drive-start" class="primary">ドライブへ →</button><button id="drive-setup-back" class="text-button">もどる</button>
+    </section>
+    <section id="drive" class="card drive-card" hidden aria-labelledby="drive-title">
+      <div class="game-heading"><h1 id="drive-title">さんすうドライブ</h1><span id="drive-count"></span></div>
+      <div id="drive-scene" class="drive-scene" aria-label="くるまと みち">
+        <svg id="drive-landscape" viewBox="0 0 320 300" preserveAspectRatio="none" aria-hidden="true">
+          <g id="drive-road-edges" fill="none" stroke="#fff5d7" stroke-linejoin="round"></g>
+          <g id="drive-road-surface" fill="none" stroke="#7e8891" stroke-linejoin="round"></g>
+          <g id="drive-road-marks" fill="none" stroke="#fff9df" stroke-width="3" stroke-dasharray="24 36"></g>
+        </svg>
+        <div id="drive-scenery" aria-hidden="true"></div>
+        <p id="drive-problem" class="drive-problem" aria-live="polite" hidden></p>
+        <div id="drive-goal" class="drive-goal" hidden>🏁 GOAL 🏁</div>
+        <div id="drive-signs" class="drive-signs"><span id="drive-left"></span><span id="drive-right"></span></div>
+        <div class="drive-car-position" id="drive-car-position"><div id="drive-car"></div></div>
+      </div>
+      <p id="drive-feedback" class="drive-feedback" role="status">ハンドルを うごかそう！</p>
+      <div id="drive-wheel" class="drive-wheel" tabindex="0" role="slider" aria-label="ハンドル。左右にドラッグ、または左右矢印キーで運転" aria-valuemin="-40" aria-valuemax="40" aria-valuenow="0" aria-valuetext="まんなか">
+        <svg viewBox="0 0 180 180" aria-hidden="true"><circle cx="90" cy="90" r="72" fill="#fff8ed" stroke="#4c6470" stroke-width="20"/><path d="M24 77 L90 98 L156 77 M90 98 V160" fill="none" stroke="#4c6470" stroke-width="16"/><circle cx="90" cy="93" r="22" fill="#f4be69"/><path d="M90 12 V26" stroke="#f4be69" stroke-width="9"/></svg>
+      </div>
+      <p class="note drive-help">ハンドルを よこに うごかして<br>こたえの みちへ！ はなすと まんなか。</p>
+      <button id="drive-practice-start" class="primary" hidden>じゅんび OK！ スタート</button>
+      <button id="drive-back" class="text-button">おみせに もどる</button>
+    </section>
     <section id="game" class="card" aria-labelledby="game-title" hidden>
       <div class="game-heading"><h1 id="game-title">たしざん</h1><span id="question-count">1 / 10 もん</span></div>
       <progress id="progress" max="10" value="0" aria-label="おわった もんだい">0 / 10</progress>
@@ -79,6 +109,7 @@
       <h2>計算の学習記録</h2><p class="note">この機能の追加後から集計します。解いた問題数・正解数は各問題の最初の回答を数えます。途中でやめた分も含みます。</p>
       <dl id="learning-stats" class="learning-stats"></dl>
       <h2>最近よく間違えている計算の種類</h2><p class="note">直近60問の最初の回答での間違いを集計します。</p><ul id="learning-trends" class="learning-trends"></ul>
+      <h2>ドライブの記録</h2><p id="drive-stats" class="note"></p>
       <h2>とけいの学習記録</h2><dl id="clock-stats" class="learning-stats"></dl>
       <p class="note">各問題の最初の回答を数えます。再挑戦は重複して数えません。</p>
       <ul id="clock-trends" class="learning-trends"></ul>
@@ -92,7 +123,7 @@
       <label class="report-filter">確認する計算 <select id="report-filter"><option value="all">全体</option><option value="addition">たし算</option><option value="subtraction">ひき算</option></select></label>
       <h2>最近のようす</h2><p id="report-period" class="note"></p><div id="report-summary" class="report-grid"></div><p id="report-samples" class="note"></p>
       <h2>前の7日間との比較</h2><div id="report-comparison" class="report-grid"></div><p id="report-growth" class="note"></p>
-      <p class="note">計算のみの記録です。ミックスの開始回数は、たし算・ひき算の両方に含まれます。各期間の習熟度はその期間内の直近5回答で判定します。問題の種類・操作にかかる時間の影響もあり、数値は観察の目安です。</p>
+      <p class="note">計算の記録です（ドライブも含みます）。回答速度は通常モードのみで判定します。ミックスの開始回数は、たし算・ひき算の両方に含まれます。各期間の習熟度はその期間内の直近5回答で判定します。問題の種類・操作にかかる時間の影響もあり、数値は観察の目安です。</p>
       <h2>問題ごとのようす</h2><p class="note">タップすると直近8回までの回答が開きます。3回答未満、または有効な時間が足りない場合はデータ収集中です。</p><div id="problem-report"></div>
       <button id="report-back" class="primary">設定へもどる</button>
     </section>

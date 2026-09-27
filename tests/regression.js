@@ -35,5 +35,6 @@ startClock(2);check(document.documentElement.scrollWidth<=innerWidth,'clock widt
 byId('reset-request').click();byId('reset-confirm-button').click();check(!progressData.clock.medal&&progressData.clock.stats.plays===0&&progressData.clock.enabled[1],'reset clock retains settings');
 
 await testLearning(check);
+await testDrive(check);
 document.head.querySelector('style').remove();document.body.textContent='PASS '+checks+' checks. Legacy migration, 5 levels, bounds, mixed balance, retry, stats, adaptive selection, settings, collections, streaks, replay, reset, responsive layout. Bias counts '+adapted+'/'+baseline;
 }catch(e){document.head.querySelector('style')?.remove();document.body.textContent='FAIL '+e.stack;}})();
