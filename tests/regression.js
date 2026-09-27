@@ -1,8 +1,8 @@
 (async()=>{let checks=0;function check(ok,label){checks++;if(!ok)throw Error(label);}
 try{
-const old={stars:32,lastDay:'2026-09-24',streak:8,sound:false};localStorage.setItem(STORAGE_KEY,JSON.stringify(old));progressData=loadProgress();check(progressData.stars===32&&progressData.streak===8&&progressData.lastDay===old.lastDay,'legacy');check(progressData.enabled.join()==='true,true,false,false,false'&&progressData.stats.plays===0,'new defaults');saveProgress();progressData=loadProgress();check(progressData.stars===32,'migration roundtrip');
+const old={stars:32,lastDay:'2026-09-24',streak:8,sound:false};localStorage.setItem(STORAGE_KEY,JSON.stringify(old));progressData=loadProgress();check(progressData.stars===32&&progressData.streak===8&&progressData.lastDay===old.lastDay,'legacy');check(progressData.enabled.join()==='true,true,false,false,false,false'&&progressData.stats.plays===0,'new defaults');saveProgress();progressData=loadProgress();check(progressData.stars===32,'migration roundtrip');
 showScreen('home');startGame(3);check(screen==='home','locked guard');renderSettings();const toggles=[...document.querySelectorAll('#level-settings input')];toggles.forEach(toggle=>{toggle.checked=true;toggle.dispatchEvent(new Event('change'));});check(loadProgress().enabled.every(Boolean),'settings saved');
-for(const level of levels){for(let j=0;j<30;j++){const qs=createQuestions(level.mode,level.limit);check(qs.length===10&&new Set(qs.map(q=>`${q.a},${q.op},${q.b}`)).size===10,'unique');check(qs.every(q=>q.a>=0&&q.a<=level.limit&&q.b>=0&&q.b<=level.limit&&q.answer>=0&&q.answer<=level.limit&&q.answer===(q.op==='addition'?q.a+q.b:q.a-q.b)),'bounds');if(level.id===5)check(qs.filter(q=>q.op==='addition').length===5,'balanced');}
+for(const level of levels){for(let j=0;j<30;j++){const qs=createQuestions(level.mode,level.limit);check(qs.length===10&&new Set(qs.map(problemKey)).size===10,'unique');check(qs.every(q=>q.a>=0&&q.a<=level.limit&&q.b>=0&&q.b<=level.limit&&q.answer>=0&&q.answer<=level.limit&&q.answer===(q.operationType==='three-number'?calculateStep(calculateStep(q.a,q.op,q.b),q.op2,q.c):calculateStep(q.a,q.op,q.b))),'bounds');if(level.id===5)check(qs.filter(q=>q.op==='addition').length===5,'balanced');}
 for(const target of [0,5,8,10]){const before={...progressData.stats};const stars=progressData.stars;startGame(level.id);enterDigit('2');enterDigit('0');check(input==='20','input 20');editInput(false);check(input==='2','backspace');editInput(true);
 for(let i=0;i<10;i++){if(i>=target){enterDigit('9');enterDigit('9');checkAnswer();checkAnswer();check(!solved,'retry');}String(questions[i].answer).split('').forEach(enterDigit);checkAnswer();check(solved,'solved');checkAnswer();nextQuestion();}
 check(screen==='result'&&firstTryCorrect===target,'result');check(progressData.stats.plays===before.plays+1&&progressData.stats.answered===before.answered+10&&progressData.stats.correct===before.correct+target,'stats');check(progressData.stars===stars+earnedStars(target),'award');check(progressData.cleared.includes(level.id),'cleared');check(byId('score').textContent==='きょうも ひとつ つよくなったね！','positive');const after=progressData.stars;nextQuestion();check(progressData.stars===after,'no duplicate');byId('again').click();check(activeLevel===level.id&&questionIndex===0,'same level replay');}}
@@ -36,5 +36,9 @@ byId('reset-request').click();byId('reset-confirm-button').click();check(!progre
 
 await testLearning(check);
 await testDrive(check);
-document.head.querySelector('style').remove();document.body.textContent='PASS '+checks+' checks. Legacy migration, 5 levels, bounds, mixed balance, retry, stats, adaptive selection, settings, collections, streaks, replay, reset, responsive layout. Bias counts '+adapted+'/'+baseline;
+await testPhase7(check);
+await testIsland(check);
+await testIslandGrid(check);
+await testExpandedIslandGrid(check);
+document.head.querySelector('style').remove();document.body.textContent='PASS '+checks+' checks. Legacy migration, 6 levels, bounds, mixed balance, retry, stats, adaptive selection, settings, collections, streaks, replay, reset, responsive layout. Bias counts '+adapted+'/'+baseline;
 }catch(e){document.head.querySelector('style')?.remove();document.body.textContent='FAIL '+e.stack;}})();

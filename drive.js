@@ -43,7 +43,7 @@ function openDriveSetup() {
       prepareAudio(); playSound('correct');
     }); return button;
   }));
-  const enabled = levels.filter(level => progressData.enabled[level.id - 1]);
+  const enabled = levels.filter(level => level.mode !== 'three-number' && progressData.enabled[level.id - 1]);
   byId('drive-level').replaceChildren(...enabled.map(level => {
     const option = document.createElement('option'); option.value = level.id; option.textContent = level.title; return option;
   }));
@@ -52,7 +52,7 @@ function openDriveSetup() {
 }
 function startDrive(id) {
   const level = levels.find(item => item.id === id);
-  if (!level || !progressData.enabled[id - 1]) return;
+  if (!level || level.mode === 'three-number' || !progressData.enabled[id - 1]) return;
   stopDrive(); gameKind = 'drive'; activeLevel = id; mode = level.mode;
   questionIndex = 0; firstTryCorrect = 0; questions = [];
   driveState.practice = !progressData.drive.explained;

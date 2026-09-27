@@ -17,9 +17,11 @@ const levels = [
   { id: 2, limit: 10, mode: 'subtraction', title: '10までの ひきざん', icon: '🌷' },
   { id: 3, limit: 20, mode: 'addition', title: '20までの たしざん', icon: '🌳' },
   { id: 4, limit: 20, mode: 'subtraction', title: '20までの ひきざん', icon: '⛰️' },
-  { id: 5, limit: 20, mode: 'mixed', title: '20までの ミックス', icon: '🏰' }
+  { id: 5, limit: 20, mode: 'mixed', title: '20までの ミックス', icon: '🏰' },
+  { id: 6, limit: 20, mode: 'three-number', title: '3つのかず', icon: '🧩' }
 ];
 const categoryNames = {
+  'three-number': '3つのかず',
   'addition-small': '10以内のたし算', 'addition-large': '20以内のたし算（繰り上がりなし）',
   'addition-cross': '繰り上がりのあるたし算', 'subtraction-small': '10以内のひき算',
   'subtraction-large': '20以内のひき算（繰り下がりなし）', 'subtraction-cross': '繰り下がりのあるひき算'
@@ -89,6 +91,7 @@ function shuffle(array) {
 
 // 最多でも2問だけを最近の傾向から選び、残りはランダムにする。
 function calculationType(q) {
+  if (q.operationType === 'three-number') return 'three-number';
   const crossing = q.op === 'addition' ? q.a % 10 + q.b % 10 >= 10 : q.a % 10 < q.b % 10;
   return `${q.op}-${crossing ? 'cross' : Math.max(q.a, q.b, q.answer) <= 10 ? 'small' : 'large'}`;
 }
@@ -100,11 +103,12 @@ function recentTrends() {
   return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 }
 function createQuestions(operation, limit = 10) {
-  const pool = [];
-  for (let a = 0; a <= limit; a++) for (let b = 0; b <= limit; b++) {
+  const pool = operation === 'three-number' ? threeNumberPool() : [];
+  for (let a = 0; a <= limit && operation !== 'three-number'; a++) for (let b = 0; b <= limit; b++) {
     if (operation !== 'subtraction' && a + b <= limit) pool.push({ a, b, op: 'addition', answer: a + b });
     if (operation !== 'addition' && a >= b) pool.push({ a, b, op: 'subtraction', answer: a - b });
   }
+  pool.forEach(q => Object.assign(q, questionMetadata(q)));
   const trend = recentTrends().find(([type, count]) => count >= 2 && pool.some(q => calculationType(q) === type));
   const review = reviewCandidates(pool);
   const selected = review.length ? shuffle(review).slice(0, 2) : trend ? shuffle(pool.filter(q => calculationType(q) === trend[0])).slice(0, 2) : [];
@@ -116,13 +120,45 @@ function createQuestions(operation, limit = 10) {
   return shuffle(selected);
 }
 
+// 一桁の数を中心にし、途中も答えも0〜20に収める共通の問題プール。
+function threeNumberPool() {
+  const pool = [];
+  for (let a = 1; a <= 10; a++) for (let b = 1; b <= 9; b++) for (let c = 1; c <= 9; c++) {
+    for (const op of ['addition', 'subtraction']) for (const op2 of ['addition', 'subtraction']) {
+      const q = threeNumber(a, op, b, op2, c);
+      if (q.firstStep.answer >= 0 && q.firstStep.answer <= 20 && q.answer >= 0 && q.answer <= 20) pool.push(q);
+    }
+  }
+  return pool;
+}
+function showMathHint() {
+  const q = questions[questionIndex];
+  if (screen !== 'game' || gameKind !== 'math' || solved || q?.operationType !== 'three-number') return;
+  hintUsed = true; hintStage = Math.min(2, hintStage + 1);
+  byId('hint-text').textContent = hintStage === 1
+    ? `まず ${stepLabel(q.firstStep)} を かんがえてみよう`
+    : `${stepLabel(q.firstStep)} = ${q.firstStep.answer}。つぎは ${stepLabel(q.secondStep)} だよ`;
+  byId('math-hint').textContent = hintStage === 1 ? 'もうすこし ヒント' : 'ヒント';
+  // 初回回答後に使ったヒントも残す。初回の正誤・時間は変更しない。
+  if (answeredRecorded) {
+    const record = progressData.learning.problems[problemKey(q)];
+    const sample = record?.history.at(-1);
+    if (sample && !sample.hintUsed) {
+      sample.hintUsed = true;
+      const summary = progressData.learning.days[dayKey(new Date(sample.at))]?.problems[problemKey(q)];
+      if (summary) { summary.hints = (summary.hints || 0) + 1; summary.tail.at(-1).hintUsed = true; }
+      saveProgress();
+    }
+  }
+}
+
 function showScreen(name) {
   if (['settings', 'report'].includes(name) && !parentVerified) return;
   if (name === 'home') parentVerified = false;
   if (name !== 'drive') stopDrive();
   if (name !== 'result') clearCelebration();
   screen = name;
-  ['home', 'game', 'result', 'collection', 'settings', 'report', 'drive-setup', 'drive'].forEach(id => { byId(id).hidden = id !== name; });
+  ['home', 'game', 'result', 'collection', 'settings', 'report', 'drive-setup', 'drive', 'island'].forEach(id => { byId(id).hidden = id !== name; });
   byId('open-settings').hidden = name !== 'home';
   if (name === 'home') renderHome();
   window.scrollTo(0, 0);
@@ -165,7 +201,12 @@ function renderQuestion() {
   byId('math-equation').hidden = isClock;
   byId('keypad').hidden = isClock;
   if (isClock) renderClockQuestion(question);
-  byId('problem').textContent = `${question.a} ${question.op === 'addition' ? '＋' : '−'} ${question.b}`;
+  const triple = !isClock && question.operationType === 'three-number';
+  byId('math-equation').classList.toggle('three-number', triple);
+  byId('hint-controls').hidden = !triple;
+  byId('hint-text').textContent = '';
+  byId('math-hint').textContent = 'ヒント';
+  byId('problem').textContent = isClock ? '' : questionLabel(question);
   byId('question-count').textContent = `${questionIndex + 1} / 10 もん`;
   byId('progress').value = questionIndex;
   byId('progress').textContent = `${questionIndex} / 10`;
@@ -226,7 +267,7 @@ function checkAnswer() {
   if (!madeMistake) firstTryCorrect++;
   const messages = gameKind === 'clock' ? ['せいかい！', 'とけいマスター！', 'よく みつけたね！'] : praise;
   byId('feedback').textContent = messages[Math.floor(Math.random() * messages.length)];
-  if (gameKind === 'math' && !madeMistake && firstTiming !== null && firstTiming <= LEARNING.fastMs) byId('feedback').textContent = '⚡ パッとできた！';
+  if (gameKind === 'math' && !madeMistake && !hintUsed && firstTiming !== null && firstTiming <= LEARNING.fastMs) byId('feedback').textContent = '⚡ パッとできた！';
   if (gameKind === 'clock') {
     byId('clock-face').classList.add('clock-success');
     document.querySelectorAll('#clock-choices button').forEach(button => { button.disabled = true; });
@@ -289,8 +330,8 @@ const friends = [
   { stars: 30, icon: '🦁', name: 'ライオン' },
   { stars: 50, icon: '👑', name: 'おうかん' }
 ];
-const freshProgress = () => ({ stars: 0, lastDay: '', streak: 0, sound: false,
-  enabled: [true, true, false, false, false], cleared: [],
+const freshProgress = () => ({ stars: 0, islandEarned: 0, lastDay: '', streak: 0, sound: false,
+  enabled: [true, true, false, false, false, false], cleared: [],
   stats: { plays: 0, answered: 0, correct: 0 }, recent: [], clock: freshClock(), learning: freshLearning(), drive: freshDrive() });
 const safeCount = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
 function dayKey(date = new Date()) {
@@ -312,6 +353,7 @@ function loadProgress() {
     if (!saved || typeof saved !== 'object') return freshProgress();
     return {
       stars: Number.isSafeInteger(saved.stars) && saved.stars >= 0 ? saved.stars : 0,
+      islandEarned: Math.max(safeCount(saved.islandEarned), safeCount(saved.stars)),
       lastDay: validDay(saved.lastDay) ? saved.lastDay : '',
       streak: validDay(saved.lastDay) && Number.isSafeInteger(saved.streak) && saved.streak > 0 ? saved.streak : 0,
       sound: saved.sound === true,
@@ -350,6 +392,7 @@ function awardCompletion(date = new Date()) {
   const count = earnedStars(firstTryCorrect);
   const today = dayKey(date);
   const firstToday = progressData.lastDay !== today;
+  progressData.islandEarned += count;
   progressData.stars += count;
   const firstClockClear = gameKind === 'clock' && !progressData.clock.medal;
   if (gameKind === 'clock') {
@@ -451,7 +494,7 @@ byId('settings-home').addEventListener('click', () => showScreen('home'));
 let resetScope = 'all';
 function requestReset(scope) {
   resetScope = scope;
-  byId('reset-description').textContent = scope === 'learning' ? '計算・時計の学習記録とレポートを消します。星・仲間・メダル・連続記録・クリア状況・設定は残ります。元には戻せません。' : '星・仲間・メダル・連続記録・クリア状況・学習記録をすべて消します。音と遊べるレベルの設定は残ります。元には戻せません。';
+  byId('reset-description').textContent = scope === 'learning' ? '計算・時計の学習記録とレポートを消します。星・仲間・メダル・連続記録・クリア状況・設定は残ります。元には戻せません。' : '星・仲間・メダル・連続記録・クリア状況・学習記録をすべて消します。音と遊べるレベルの設定、島と島で使える星は残ります。元には戻せません。';
   byId('reset-confirm').hidden = false; byId('reset-cancel').focus();
 }
 byId('reset-request').addEventListener('click', () => requestReset('all'));
@@ -463,7 +506,7 @@ byId('reset-confirm-button').addEventListener('click', () => {
     progressData.learning = freshLearning(); progressData.recent = []; progressData.stats = { plays: 0, answered: 0, correct: 0 };
     progressData.clock.stats = { plays: 0, answered: 0, correct: 0 }; progressData.clock.errors = { hour: 0, half: 0 };
   } else {
-  progressData = { ...freshProgress(), sound: progressData.sound, enabled: [...progressData.enabled], clock: { ...freshClock(), enabled: [...progressData.clock.enabled] } };
+  progressData = { ...freshProgress(), islandEarned: progressData.islandEarned, sound: progressData.sound, enabled: [...progressData.enabled], clock: { ...freshClock(), enabled: [...progressData.clock.enabled] } };
   }
   saveProgress(); clearCelebration();
   byId('reset-confirm').hidden = true;
@@ -477,7 +520,7 @@ document.addEventListener('visibilitychange', () => {
 function renderLevels() {
   byId('level-cards').replaceChildren(...levels.map(level => {
     const button = document.createElement('button');
-    button.className = `level-card ${level.mode === 'subtraction' ? 'subtraction' : 'addition'}`;
+    button.className = `level-card ${level.mode}`;
     button.disabled = !progressData.enabled[level.id - 1];
     const title = document.createElement('strong'); title.textContent = `${level.icon} レベル ${level.id}`;
     const name = document.createElement('span'); name.textContent = level.title;
@@ -650,3 +693,7 @@ window.addEventListener('blur', () => { interruptQuestionTiming(); });
 window.addEventListener('pagehide', interruptQuestionTiming);
 
 initializeDrive();
+
+byId('math-hint').addEventListener('click', showMathHint);
+
+initializeIsland();

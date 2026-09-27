@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="learning.js" defer></script>
   <script src="drive.js" defer></script>
+  <script src="island.js" defer></script>
   <script src="game.js" defer></script>
 </head>
 <body>
@@ -19,14 +20,67 @@
       <h1 id="home-title">さんすうで あそぼう！</h1>
       <div class="daily-panel"><p id="daily-message">きょうも さんすう やってみよう！</p><p id="streak-message"></p><p class="star-total">⭐ あつめたほし：<strong id="total-stars">0</strong>こ</p></div>
       <div class="home-actions"><button id="open-collection" class="secondary">🎁 コレクション</button><button id="sound-toggle" class="secondary" aria-pressed="false">🔇 おと OFF</button></div>
-      <h2 class="adventure-title">🗺️ さんすうのぼうけん</h2>
-      <p class="note">すきな レベルで あそぼう！</p>
-      <div id="level-cards" class="level-cards"></div>
-      <button id="open-drive" class="primary">🚗 さんすうドライブ</button>
-      <h2 class="adventure-title">🕰️ とけいチャレンジ</h2>
-      <div id="clock-level-cards" class="level-cards clock-level-cards"></div>
-      <p id="levels-empty" class="note" hidden>おうちの ひとと レベルを えらぼう。</p>
+      <section class="home-group" aria-labelledby="adventure-heading">
+        <h2 id="adventure-heading" class="adventure-title">🌱 さんすうのぼうけん</h2>
+        <p class="note">すきな レベルで あそぼう！</p>
+        <div id="level-cards" class="level-cards"></div>
+        <p id="levels-empty" class="note" hidden>おうちの ひとと レベルを えらぼう。</p>
+      </section>
+      <section class="home-group" aria-labelledby="clock-heading">
+        <h2 id="clock-heading" class="adventure-title">🕰️ とけいチャレンジ</h2>
+        <div id="clock-level-cards" class="level-cards clock-level-cards"></div>
+      </section>
+      <section class="home-group" aria-labelledby="play-heading">
+        <h2 id="play-heading" class="adventure-title">🎮 あそぶ</h2>
+        <div class="play-cards">
+          <button id="open-drive" class="play-card">
+            <span class="play-icon" aria-hidden="true">🚗</span>
+            <strong>さんすうドライブ</strong>
+            <span class="play-description">くるまで さんすうに ちょうせん！</span>
+            <span class="play-action">あそぶ →</span>
+          </button>
+          <button id="open-island" class="play-card island-play-card">
+            <span class="play-icon" aria-hidden="true">🏝️</span><strong>さんすうじま</strong>
+            <span class="play-description">じぶんの しまを つくろう！</span><span class="play-action">あそぶ →</span>
+          </button>
+        </div>
+      </section>
       <p class="note">ぜんぶで 10もん<br>1かい 3〜5ふんが めやすだよ<br>じかんは たっぷり。あせらなくて いいよ。</p>
+    </section>
+
+    <section id="island" class="card island-card" aria-labelledby="island-title" hidden>
+      <h1 id="island-title">🏝️ さんすうじま</h1>
+      <p class="island-wallet">⭐ つかえる ほし <strong id="island-balance">0</strong>こ</p>
+      <p id="island-message" role="status" aria-live="polite">じぶんの しまを つくろう！</p>
+      <p id="island-storage" class="note" hidden>ほぞんが できないよ。おうちのひとに きいてね。</p>
+      <div class="island-map-scroll" tabindex="0" aria-label="しま。よこにスクロールできます">
+      <svg id="island-map" viewBox="0 0 1000 760" tabindex="0" role="group" aria-label="しま。おくものをえらんで、マスをタップ。キーボードはやじるしでうごかしてEnter。">
+        <title>うみと、これからそだつ しま</title>
+        <rect width="1000" height="760" rx="40" fill="#cceaf1"/>
+        <path d="M50 130q35 20 70 0m700 520q35 20 70 0M100 650q35 20 70 0m680-520q35 20 70 0" fill="none" stroke="#f5fcff" stroke-width="9" stroke-linecap="round"/>
+        <ellipse cx="500" cy="404" rx="445" ry="310" fill="#e8d8a6"/>
+        <ellipse cx="500" cy="385" rx="410" ry="285" fill="#d6e9b7"/>
+        <path d="M280 660V300" stroke="#eee0b8" stroke-width="70" stroke-linecap="round"/>
+        <defs><mask id="island-grid-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="760">
+          <rect width="1000" height="760" fill="black"/>
+          <ellipse cx="500" cy="385" rx="410" ry="285" fill="white"/>
+          <path d="M280 660V300" stroke="black" stroke-width="70" stroke-linecap="round"/>
+          <g id="island-grid-holes"></g>
+        </mask></defs>
+        <g id="island-grid" visibility="hidden" mask="url(#island-grid-mask)"></g>
+        <g id="island-placement-flash" pointer-events="none"></g>
+        <g id="island-objects" pointer-events="none"></g>
+      </svg>
+      </div>
+      <p class="island-scroll-note">しまは よこに うごかせるよ</p>
+      <div class="island-tools"><button id="island-undo" class="secondary" disabled>もどす</button><button id="island-home" class="secondary">おうちに もどる</button></div>
+      <div id="island-selection" class="island-selection" hidden>
+        <strong id="island-selected-name"></strong>
+        <div class="island-tools"><button id="island-place" class="secondary">これを おく！</button><button id="island-cancel" class="secondary">やめる</button></div>
+      </div>
+      <h2>✨ しまに おくもの</h2><div id="island-items" class="island-items"></div>
+      <h2>しまの なかまたち</h2><div id="island-friends" class="island-friends"></div>
+      <button id="island-drive" class="text-button">🚗 ドライブに いく</button>
     </section>
 
     <section id="drive-setup" class="card" hidden aria-labelledby="drive-setup-title">
@@ -62,6 +116,7 @@
       <progress id="progress" max="10" value="0" aria-label="おわった もんだい">0 / 10</progress>
       <p id="math-prompt" class="prompt">こたえは いくつかな？</p>
       <div id="math-equation" class="equation"><span id="problem"></span><span aria-hidden="true"> = </span><output id="answer" aria-label="にゅうりょくした こたえ" aria-live="polite">？</output></div>
+      <div id="hint-controls" hidden><button id="math-hint" class="secondary">ヒント</button><p id="hint-text" aria-live="polite"></p></div>
       <div id="clock-question" hidden>
         <div id="clock-face" class="clock-face"></div>
         <p class="clock-legend"><span>みじかい はり：じ</span><span>ながい はり：ふん</span></p>
@@ -120,7 +175,7 @@
     </section>
     <section id="report" class="card" aria-labelledby="report-title" hidden>
       <h1 id="report-title">おうちの人レポート</h1>
-      <label class="report-filter">確認する計算 <select id="report-filter"><option value="all">全体</option><option value="addition">たし算</option><option value="subtraction">ひき算</option></select></label>
+      <label class="report-filter">確認する計算 <select id="report-filter"><option value="all">全体</option><option value="addition">たし算</option><option value="subtraction">ひき算</option><option value="borrowing">くり下がりのひき算</option><option value="three-number">3つのかず</option></select></label>
       <h2>最近のようす</h2><p id="report-period" class="note"></p><div id="report-summary" class="report-grid"></div><p id="report-samples" class="note"></p>
       <h2>前の7日間との比較</h2><div id="report-comparison" class="report-grid"></div><p id="report-growth" class="note"></p>
       <p class="note">計算の記録です（ドライブも含みます）。回答速度は通常モードのみで判定します。ミックスの開始回数は、たし算・ひき算の両方に含まれます。各期間の習熟度はその期間内の直近5回答で判定します。問題の種類・操作にかかる時間の影響もあり、数値は観察の目安です。</p>

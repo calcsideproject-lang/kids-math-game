@@ -127,3 +127,61 @@ dialog::backdrop{background:#423e3866}dialog p,dialog label{font-size:16px}dialo
 #drive-landscape{position:absolute;inset:0;width:100%;height:100%}
 #drive-scenery{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 #drive-scenery span{position:absolute;font-size:20px;line-height:1;will-change:top}
+
+/* 3つの数だけ、式と回答を一列に収める。 */
+#game{container-type:inline-size}
+.equation.three-number{flex-wrap:nowrap;font-size:clamp(24px,8cqi,36px);gap:clamp(3px,1cqi,8px)}
+.equation.three-number #problem{flex:0 0 auto;white-space:nowrap}
+@container(max-width:300px){.equation.three-number #answer{min-width:60px}}
+#hint-controls{margin:12px 0}#math-hint{padding:10px 24px;border-radius:14px;background:#e6f2e6}
+#hint-text{font-size:18px;margin:8px 0;overflow-wrap:anywhere}
+
+/* ぼうけんの6枚だけを、学習内容別のパステル色・同じ大きさにする。 */
+#level-cards{grid-auto-rows:1fr}
+#level-cards .level-card{grid-column:auto;height:100%}
+#level-cards .addition{background:#ffdfbe;color:#713c19}
+#level-cards .subtraction{background:#d7eee5;color:#285e4b}
+#level-cards .mixed{background:#e9dff5;color:#59416f;box-shadow:0 5px 0 #c7b5dc}
+#level-cards .three-number{background:#fff0bd;color:#68521b;box-shadow:0 5px 0 #dec980}
+#level-cards .level-card:disabled{box-shadow:none}
+
+/* 学習・時計・遊びの入口。遊びカードはこのグリッドへ追加できる。 */
+.home-group{margin-top:30px}
+.home-group + .home-group{padding-top:22px;border-top:1px solid #eee5d6}
+.home-group .adventure-title{margin:0 0 12px}
+.home-group > .note{margin:8px 0}
+.play-cards{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:22px 0}
+.play-card{display:grid;justify-items:center;gap:8px;width:100%;padding:20px 14px;border:2px solid #c4dce6;border-radius:22px;background:#e5f1f6;color:#344f60;box-shadow:0 5px 0 #c4dce6}
+.play-card .play-icon{font-size:42px;line-height:1.2}
+.play-card strong{font-size:21px}
+.play-description{font-size:clamp(13px,3.4vw,16px);line-height:1.6;overflow-wrap:anywhere}
+.play-action{justify-self:end;font-size:15px;margin-top:4px}
+
+/* さんすうじま：同じ縦横比のSVGへ割合座標で自由配置。 */
+.island-play-card{background:#e7f2d9;border-color:#c9dcb2;box-shadow:0 5px 0 #c9dcb2;color:#3c5940}
+.island-card{padding:20px 12px}.island-card h1{margin:4px 0 12px}.island-card h2{font-size:21px;margin-top:26px}
+.island-wallet{margin:8px 0;font-size:18px}.island-wallet strong{font-size:26px}
+#island-message{font-size:16px;line-height:1.6;min-height:52px;margin:8px 0}
+#island-map{display:block;width:100%;height:auto;aspect-ratio:1000/760;border-radius:18px;touch-action:manipulation}
+#island-map.placing{outline:3px solid #76a57c;outline-offset:2px;cursor:crosshair}
+#island-map:focus-visible{outline:3px solid #416eac;outline-offset:3px}
+.island-tools{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:14px 0}
+.island-tools button{padding:10px 16px;min-height:48px;font-size:16px}
+.island-selection{background:#f3f6e8;border:2px solid #d9e4c7;border-radius:16px;padding:12px;margin:14px 0}
+.island-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.island-item{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;min-height:124px;padding:12px 5px;border:2px solid #e5d9bd;border-radius:18px;background:#fff7e6;font-size:15px;color:#5d503a}
+.island-item-icon{font-size:30px}.island-item[aria-pressed=true]{border-color:#527b60;background:#e5efda}
+.island-item:disabled,.island-tools button:disabled{opacity:.55}
+.island-friends{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;font-size:32px;padding:16px;border-radius:18px;background:#f7efdd}
+@media(prefers-reduced-motion:no-preference){.island-pop{transform-box:fill-box;transform-origin:center;animation:island-pop .4s ease-out}@keyframes island-pop{0%{transform:scale(.7);opacity:.3}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}}
+
+.island-cell{fill:#fffdf2;fill-opacity:.12;stroke:#729764;stroke-opacity:.28;stroke-width:2;cursor:pointer}
+.island-cell[data-focused=true]{fill-opacity:.22;stroke-opacity:.45}
+@media(hover:hover){.island-cell:hover{fill-opacity:.25;stroke-opacity:.5}}
+.island-cell:active{fill-opacity:.35;stroke-opacity:.6}
+.island-cell-flash{fill:#fff6b5;fill-opacity:.35;stroke:none}
+
+/* 狭い端末でもマスのタップ領域を保ち、島の左右をスクロールで見渡す。 */
+.island-map-scroll{overflow-x:auto;padding:4px;max-width:100%;border-radius:18px}
+.island-map-scroll #island-map{min-width:480px;touch-action:pan-x pan-y}
+.island-scroll-note{font-size:13px;margin:4px 0;color:#596c53}
