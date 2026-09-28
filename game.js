@@ -109,15 +109,7 @@ function createQuestions(operation, limit = 10) {
     if (operation !== 'addition' && a >= b) pool.push({ a, b, op: 'subtraction', answer: a - b });
   }
   pool.forEach(q => Object.assign(q, questionMetadata(q)));
-  const trend = recentTrends().find(([type, count]) => count >= 2 && pool.some(q => calculationType(q) === type));
-  const review = reviewCandidates(pool);
-  const selected = review.length ? shuffle(review).slice(0, 2) : trend ? shuffle(pool.filter(q => calculationType(q) === trend[0])).slice(0, 2) : [];
-  const remaining = shuffle(pool.filter(q => !selected.includes(q)));
-  if (operation === 'mixed') {
-    // ミックスでは必ずたし算・ひき算を5問ずつ出す。
-    for (const op of ['addition', 'subtraction']) selected.push(...remaining.filter(q => q.op === op).slice(0, 5 - selected.filter(q => q.op === op).length));
-  } else selected.push(...remaining.slice(0, 10 - selected.length));
-  return shuffle(selected);
+  return selectLearningQuestions(pool, operation, limit);
 }
 
 // 一桁の数を中心にし、途中も答えも0〜20に収める共通の問題プール。

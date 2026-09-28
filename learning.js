@@ -125,6 +125,129 @@ function reviewCandidates(pool) {
   const needs = Object.entries(progressData.learning.problems).filter(([, p]) => mastery(p.history) === 'practice').map(([key]) => parseProblem(key));
   return pool.filter(q => needs.some(p => p.op === q.op && calculationType(p) === calculationType(q) && p.op2 === q.op2 && Math.abs(p.a - q.a) + Math.abs(p.b - q.b) + Math.abs((p.c || 0) - (q.c || 0)) <= 2));
 }
+// 子どもには見せない、履歴から都度求める出題分類。
+function learningBand(history = []) {
+  const recent = history.slice(-LEARNING.sample);
+  if (recent.length < LEARNING.minimum) return { band: 'practice', confident: false };
+  const errors = recent.filter(s => !s.correct).length;
+  const hints = recent.filter(s => s.hintUsed).length;
+  const slow = recent.filter(s => s.source !== 'drive' && Number.isFinite(s.ms) && s.ms > LEARNING.comfortableMs).length;
+  if (errors >= 3 || (errors >= 2 && hints >= 3)) return { band: 'challenge', confident: true };
+  if (errors / recent.length <= .2 && hints === 0 && slow < 3) return { band: 'fluent', confident: true };
+  return { band: 'practice', confident: true };
+}
+function questionDifficulty(q) {
+  if (q.operationType === 'three-number') {
+    return Math.max(questionDifficulty(q.firstStep), questionDifficulty(q.secondStep));
+  }
+  const crosses = q.op === 'subtraction' ? subtractionBorrowing(q) : q.a%10 + q.b%10 >= 10;
+  return crosses ? 2 : Math.max(q.a,q.b,q.answer)>10 ? 1 : 0;
+}
+// 学習範囲は習熟度と独立。たし算は答え、ひき算は引かれる数で判定する。
+const usesUpperRange = q => q.operationType !== 'three-number' && (q.op === 'addition' ? q.answer > 10 : q.a > 10);
+// 習熟度と別軸の「計算経験」。0や+1だけでは上位学習枠に数えない。
+function crossesTen(q) {
+  return q.op === 'addition' ? q.a>0 && q.a<10 && q.b>0 && q.b<10 && q.answer>10
+    : q.a>10 && q.a<20 && q.b>0 && q.b<10 && q.answer<10;
+}
+function upperPractice(q) {
+  return crossesTen(q) || (q.op==='addition' ? q.answer>10 && q.a>=2 && q.b>=2
+    : q.a>10 && q.b>=2 && q.b<10 && q.answer>=10);
+}
+// 内容の軸。習熟度（learningBand）とは独立し、保存せず式から求める。
+function learningScope(q) {
+  if(crossesTen(q)) return 'focus';
+  return upperPractice(q) && questionDifficulty(q)<2 ? 'current' : 'review';
+}
+function veryEasyPattern(q) {
+  return q.op==='addition' ? Math.min(q.a,q.b)<=1 || Math.max(q.a,q.b)<=2
+    : q.a===q.b || q.b===0 || q.b===10 || (q.a>=10&&q.b>=10&&q.answer<=3);
+}
+function selectUpperLearningQuestions(pool,operation) {
+  const review=new Set(reviewCandidates(pool).map(problemKey));
+  const trend=recentTrends().find(([type,n])=>n>=2 && pool.some(q=>calculationType(q)===type));
+  const rows=shuffle(pool).map(q=>({q,...learningBand(progressData.learning.problems[problemKey(q)]?.history)}));
+  const selected=[],keys=new Set();
+  const priority=r=>r.band==='fluent'?0:r.band==='challenge'?3:r.confident?2:1;
+  const allowed=r=>!keys.has(problemKey(r.q)) &&
+    (!veryEasyPattern(r.q)||!selected.some(veryEasyPattern)) &&
+    (!(r.q.a===0||r.q.b===0)||!selected.some(q=>q.a===0||q.b===0)) &&
+    (operation!=='mixed'||selected.filter(q=>q.op===r.q.op).length<5);
+  function take(candidates,n) {
+    // 同じ習熟度では類似練習を少し優先。強い反復は最大1問まで。
+    const sorted=[...candidates].sort((a,b)=>priority(a)-priority(b)||Number(review.has(problemKey(b.q)))-Number(review.has(problemKey(a.q))));
+    for(const relax of [false,true])for(const r of sorted) {
+      if(n<=0)return;
+      if(!allowed(r)||(!relax&&r.band==='challenge'&&selected.some(q=>learningBand(progressData.learning.problems[problemKey(q)]?.history).band==='challenge')))continue;
+      selected.push(r.q);keys.add(problemKey(r.q));n--;
+    }
+  }
+  // 10をまたぐ計算は2問を基本とし、復習傾向があれば3問まで。
+  const crossingCount=trend?3:2;
+  const crossing=rows.filter(r=>crossesTen(r.q));
+  if(operation==='mixed') {
+    take(crossing.filter(r=>r.q.op==='addition'),1);take(crossing.filter(r=>r.q.op==='subtraction'),1);
+    take(crossing,crossingCount-selected.length);
+  } else take(crossing,crossingCount);
+  const gentle=rows.filter(r=>questionDifficulty(r.q)<2);
+  take(gentle.filter(r=>learningScope(r.q)==='current'),7-crossingCount);
+  take(gentle.filter(r=>learningScope(r.q)==='review'),10-selected.length);
+  return shuffle(selected);
+}
+function selectLearningQuestions(pool, operation, limit = 10) {
+  if(limit===20 && operation!=='three-number') return selectUpperLearningQuestions(pool,operation);
+  const review = new Set(reviewCandidates(pool).map(problemKey));
+  const trend = recentTrends().find(([type,count]) => count>=2 && pool.some(q=>calculationType(q)===type));
+  const rows = shuffle(pool.map(q => ({q, ...learningBand(progressData.learning.problems[problemKey(q)]?.history), difficulty:questionDifficulty(q)})));
+  const selected=[], keys=new Set();
+  let challenges=0;
+  const upperTarget = limit === 20 && operation !== 'three-number' ? 5 : 0;
+  const keepsRange = q => usesUpperRange(q) || 10-selected.length > upperTarget-selected.filter(usesUpperRange).length;
+  const add = (candidates, count) => {
+    for (const row of candidates) {
+      if (!count) break;
+      if(!keepsRange(row.q)) continue;
+      if(keys.has(problemKey(row.q)) || (row.band==='challenge' && challenges>=1)) continue;
+      if(operation==='mixed' && selected.filter(q=>q.op===row.q.op).length>=5) continue;
+      selected.push(row.q);keys.add(problemKey(row.q));if(row.band==='challenge')challenges++;count--;
+    }
+  };
+  // 成功体験を先に確保。確かな履歴がなければ、段差の少ない計算で補う。
+  const success = rows.filter(r=>r.band==='fluent');
+  const easy = rows.filter(r=>!r.confident && r.difficulty<2).sort((a,b)=>a.difficulty-b.difficulty);
+  add(success,7);add(easy,7-selected.length);
+  add(rows.filter(r=>r.band!=='challenge'&&r.difficulty<2),7-selected.length);
+  // 類似問題を固めず、練習枠だけを少し優先する。
+  const practice = rows.filter(r=>r.band!=='challenge' && (review.has(problemKey(r.q)) || (trend && calculationType(r.q)===trend[0])));
+  add(practice,2);
+  add(rows.filter(r=>r.band==='practice').sort((a,b)=>a.difficulty-b.difficulty),Math.max(0,9-selected.length));
+  add(rows.filter(r=>r.band==='challenge'||r.difficulty===2),Math.max(0,10-selected.length));
+  add([...success,...easy,...rows.filter(r=>r.band!=='challenge')],10-selected.length);
+  // 履歴が全候補に偏った場合も10問を維持。最も易しい式から補う。
+  if(selected.length<10) {
+    for(const row of [...rows].sort((a,b)=>a.difficulty-b.difficulty)) {
+      if(selected.length===10)break;
+      if(!keepsRange(row.q))continue;
+      if(keys.has(problemKey(row.q))||(operation==='mixed'&&selected.filter(q=>q.op===row.q.op).length>=5))continue;
+      selected.push(row.q);keys.add(problemKey(row.q));
+    }
+  }
+  return shuffle(selected);
+}
+function problemGrowth(history) {
+  const normal=history.filter(s=>s.source!=='drive');
+  if(normal.length<6)return null;
+  const before=normal.slice(0,-3),recent=normal.slice(-3);
+  const summarize=samples=>{
+    const timed=samples.filter(s=>s.correct&&!s.hintUsed&&Number.isFinite(s.ms));
+    return { n:timed.length, mean:timed.length?timed.reduce((sum,s)=>sum+s.ms,0)/timed.length:null,
+      accuracy:samples.filter(s=>s.correct).length/samples.length, hints:samples.filter(s=>s.hintUsed).length/samples.length };
+  };
+  const a=summarize(before),b=summarize(recent);
+  if(a.n<3||b.n<3)return null;
+  return { before:a.mean, recent:b.mean, improving:b.mean<=a.mean*.85 && b.accuracy>=a.accuracy && b.hints<=a.hints };
+}
+
 function periodReport(filter, offset = 0, date = new Date()) {
   const start = dateOffset(date, -6 - offset), end = dateOffset(date, -offset);
   const result = { plays: 0, hints: 0, n: 0, c: 0, sum: 0, t: 0, fast: 0, driveSum: 0, driveT: 0, driveN: 0, start, end, history: {} };
@@ -184,7 +307,9 @@ function renderReport() {
     const timed = p.history.filter(s => s.source !== 'drive' && s.ms !== null);
     const driven = p.history.filter(s => s.source === 'drive' && s.ms !== null);
     const avg = document.createElement('p'); avg.textContent = `最近${p.history.length}回の平均：${timed.length ? seconds(timed.reduce((sum, s) => sum + s.ms, 0) / timed.length) : 'データ収集中'}（通常のみ・参考外を除く）。ドライブ平均：${driven.length ? seconds(driven.reduce((sum, s) => sum + s.ms, 0) / driven.length) : 'データ収集中'}`;
-    details.append(summary, totals, last, history, avg); return details;
+    const change=document.createElement('p'), growth=problemGrowth(p.history);
+    change.textContent=growth ? `同じ式の通常・ヒントなし正解：以前 ${seconds(growth.before)} → 最近 ${seconds(growth.recent)}。${growth.improving ? 'より自然に答えられるようになってきています。' : '自分のペースで積み重ねています。'}` : '変化を見るための回答を集めています。';
+    details.append(summary, totals, last, history, avg, change); return details;
   }));
   if (!list.length) byId('problem-report').textContent = 'データ収集中です。これから遊んだ計算が表示されます。';
 }
